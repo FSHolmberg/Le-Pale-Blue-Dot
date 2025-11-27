@@ -1,0 +1,13 @@
+# Virtual environment folder (CRUCIAL)
+ venv/
+.venv/
+ 
+# Environment variables (API keys) (CRUCIAL)
+ .env 
+
+# Python compiled files
+ __pycache__/
+ *.pyc 
+
+# Operating system files
+ .DS_Store
