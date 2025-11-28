@@ -54,7 +54,9 @@ class Router:
 
             elif clean.startswith("bernie"):
                 agent_name = "bernie"
-                reply = self.bernie.respond(text)
+                # Strip "bernie:" or "bernie," prefix
+                user_message = text.split("bernie", 1)[1].strip(":, ")
+                reply = self.bernie.respond(user_message)
 
             elif clean.startswith("bukowski"):
                 agent_name = "bukowski"
