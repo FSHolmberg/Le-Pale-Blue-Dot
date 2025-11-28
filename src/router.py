@@ -48,14 +48,21 @@ class Router:
                 agent_name = "blanca"
                 reply = self.blanca.respond(text)
 
-            elif clean == "jb":
+            elif clean == "jb" or clean.startswith("jb,") or clean.startswith("jb "):
                 agent_name = "jb"
-                reply = self.jb.respond(text)
+                # Strip "jb" prefix if present
+                if clean != "jb":
+                    user_message = text.split("jb", 1)[1].strip(",: ")
+                else:
+                    user_message = text
+                reply = self.jb.respond(user_message)
 
-            elif clean.startswith("bernie"):
+            elif clean == "bernie" or clean.startswith("bernie,") or clean.startswith("bernie "):
                 agent_name = "bernie"
                 # Strip "bernie:" or "bernie," prefix
-                user_message = text.split("bernie", 1)[1].strip(":, ")
+                if clean != "bernie":
+                    user_message = text.split("bernie", 1)[1].strip(":, ")
+                else: user_message = text
                 reply = self.bernie.respond(user_message)
 
             elif clean.startswith("bukowski"):

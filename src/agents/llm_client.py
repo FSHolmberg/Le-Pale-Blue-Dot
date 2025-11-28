@@ -1,5 +1,5 @@
 
-
+import os
 import anthropic
 
 
@@ -7,6 +7,10 @@ class LLMClient:
     """Wrapper for Claude API calls. Used by all agents."""
 
     def __init__(self, model: str = "claude-sonnet-4-5-20250929") -> None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set in this process")
+        
         self.client = anthropic.Anthropic()  # Uses ANTHROPIC_API_KEY env var
         self.model = model
 
