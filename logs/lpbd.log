@@ -1,0 +1,40 @@
+2025-11-28 11:46:58 [INFO] user=u1 agent=bart text='hello' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:58 [INFO] user=u1 agent=bart text='1' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:58 [INFO] user=u1 agent=bart text='2' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:58 [INFO] user=u1 agent=bart text='3' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:59 [INFO] user=u1 agent=bart text='a' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:59 [INFO] user=u1 agent=bart text='b' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:59 [INFO] user=u1 agent=bart text='c' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:59 [INFO] user=test agent=jb text='jb' reply='yes, JB is here and still as unimpressed.'
+2025-11-28 11:46:59 [INFO] user=x agent=blanca text='HELLO' reply='Blanca is watching.'
+2025-11-28 11:46:59 [INFO] user=x agent=bart text='hello' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:46:59 [INFO] user=test agent=bernie text="bernie: I'm tired." reply='Bernie: let\'s sit with that for a moment - "bernie: I\'m tired."'
+2025-11-28 11:46:59 [INFO] user=test agent=bukowski text="bukowski: I'm tired." reply="Unclear instruction.\nUse:\n- 'bukowski: note'\n- 'bukowski: show last'\n- 'bukowski: delete last'\n- 'bukowski: help'"
+2025-11-28 11:46:59 [INFO] user=test agent=hermes text="hermes: I'm tired." reply='I am Hermes. I am not yet implemented.'
+2025-11-28 11:46:59 [ERROR] router_handle_exception user=x text='hello'
+Traceback (most recent call last):
+  File "/Users/fredrikholmberg/code/lpbd/src/router.py", line 74, in handle
+    reply = self.bart.respond(text)
+TypeError: test_router_fallback_on_agent_exception.<locals>.boom() missing 1 required positional argument: 'text'
+2025-11-28 11:46:59 [ERROR] router_fallback user=x reason=exception_in_handle text='hello'
+2025-11-28 11:46:59 [ERROR] router_fallback user=x reason=empty_message text='   '
+2025-11-28 11:49:09 [INFO] user=u1 agent=bart text='hello' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:10 [INFO] user=u1 agent=bart text='1' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:10 [INFO] user=u1 agent=bart text='2' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:10 [INFO] user=u1 agent=bart text='3' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:10 [INFO] user=u1 agent=bart text='a' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:10 [INFO] user=u1 agent=bart text='b' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:11 [INFO] user=u1 agent=bart text='c' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:11 [INFO] user=test agent=jb text='jb' reply='yes, JB is here and still as unimpressed.'
+2025-11-28 11:49:11 [INFO] user=x agent=blanca text='HELLO' reply='Blanca is watching.'
+2025-11-28 11:49:11 [INFO] user=x agent=bart text='hello' reply="Bart: Something's off. Try again in a moment."
+2025-11-28 11:49:11 [INFO] user=test agent=bernie text="bernie: I'm tired." reply='Bernie: let\'s sit with that for a moment - "bernie: I\'m tired."'
+2025-11-28 11:49:11 [INFO] user=test agent=bukowski text="bukowski: I'm tired." reply="Unclear instruction.\nUse:\n- 'bukowski: note'\n- 'bukowski: show last'\n- 'bukowski: delete last'\n- 'bukowski: help'"
+2025-11-28 11:49:11 [INFO] user=test agent=hermes text="hermes: I'm tired." reply='I am Hermes. I am not yet implemented.'
+2025-11-28 11:49:11 [ERROR] router_handle_exception user=x text='hello'
+Traceback (most recent call last):
+  File "/Users/fredrikholmberg/code/lpbd/src/router.py", line 74, in handle
+    reply = self.bart.respond(text)
+TypeError: test_router_fallback_on_agent_exception.<locals>.boom() missing 1 required positional argument: 'text'
+2025-11-28 11:49:11 [ERROR] router_fallback user=x reason=exception_in_handle text='hello'
+2025-11-28 11:49:11 [ERROR] router_fallback user=x reason=empty_message text='   '
