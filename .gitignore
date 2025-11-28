@@ -1,13 +1,25 @@
+touch .gitignore
+```
+
+Then open it in VS Code and paste this:
+```
 # Virtual environment folder (CRUCIAL)
- venv/
+venv/
 .venv/
- 
+
 # Environment variables (API keys) (CRUCIAL)
- .env 
+.env
 
 # Python compiled files
- __pycache__/
- *.pyc 
+__pycache__/
+*.pyc
 
 # Operating system files
- .DS_Store
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Pytest cache
+.pytest_cache/
