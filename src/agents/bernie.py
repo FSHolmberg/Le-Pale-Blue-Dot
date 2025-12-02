@@ -29,8 +29,10 @@ class Bernie:
                 user_text=text,
                 max_tokens=200,
             )
-            # Strip stage directions
-            response = re.sub(r'\*[^*]*\*', '', response).strip()
+            # Remove asterisks around single words (emphasis), remove entire multi-word phrases (stage directions)
+            response = re.sub(r'\*(\w+)\*', r'\1', response)  # *word* -> word
+            response = re.sub(r'\*[^*]*\s+[^*]+\*', '', response)  # Remove multi-word stage directions
+            response = response.strip()
             return response
         except Exception as e:
             # Show actual error for debugging

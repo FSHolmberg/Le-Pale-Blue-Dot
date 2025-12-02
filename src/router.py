@@ -35,6 +35,17 @@ class Router:
             f"router_fallback user={message.user_id} reason={reason} text={getattr(message, 'text', None)!r}")
         return "blanca", reply
     
+    def _detect_crisis(self, text: str) -> bool:
+        """Detect crisis language that should route to Hermes."""
+        crisis_patterns = [
+            "kill myself", "end it all", "suicide", "want to die", "end my life",
+            "hurt myself", "self harm", "cut myself", "hurting someone"
+            "kill someone", "hurt someone", "hurt my", "hurting my",
+            "hurting them", "hurt them", "murder", "going to hurt"
+        ]
+        clean = text.lower()
+        return any(pattern in clean for pattern in crisis_patterns)
+    
     def mute_agent(self, agent_name: str) -> str:
         """Mute an agent."""
         valid_agents = ["bart", "bernie", "jb", "blanca", "bukowski", "hermes"]
@@ -68,10 +79,16 @@ class Router:
                 self.logger.info(f"user={user_id} action=unmute agent={agent_to_unmute}")
                 return "system", reply
             
+            # Check for empty messages
             if not text or text.strip() == "":
                 return self._fallback_to_blanca(message, "empty_message")
+            
+            # Check for crisis (route to Hermes)
+            if self._detect_crisis(text):
+                agent_name = "hermes"
+                reply = self.hermes.respond(text)
 
-            if text.isupper() and text.strip() != "":
+            elif text.isupper() and text.strip() != "":
                 agent_name = "blanca"
                 reply = self.blanca.respond(text)
 
