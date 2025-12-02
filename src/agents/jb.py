@@ -1,6 +1,4 @@
-
-
-
+import re
 from src.agents.llm_client import LLMClient
 
 
@@ -29,10 +27,13 @@ class JB:
             return "JB: I'm listening."
 
         try:
-            return self.llm.call(
+            response = self.llm.call(
                 system_prompt=self.prompt,
                 user_text=text,
                 max_tokens=200,
             )
+            # No filtering - let JB speak naturally
+            return response.strip()
+        
         except Exception as e:
             return f"JB error: {str(e)}"

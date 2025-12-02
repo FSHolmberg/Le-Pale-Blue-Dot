@@ -27,12 +27,26 @@ class Router:
         self.history = history or MessageHistory()
         self.ledger = BukowskiLedger()
         self.logger = setup_logger()
+        self.muted_agents = set()
 
     def _fallback_to_blanca(self, message: Message, reason: str) -> tuple[str, str]:
         reply = "Blanca: Something broke. Cleaner needs the room."
         self.logger.error(
             f"router_fallback user={message.user_id} reason={reason} text={getattr(message, 'text', None)!r}")
         return "blanca", reply
+    
+    def mute_agent(self, agent_name: str) -> str:
+        """Mute an agent."""
+        valid_agents = ["bart", "bernie", "jb", "blanca", "bukowski", "hermes"]
+        if agent_name in valid_agents:
+            self.muted_agents.add(agent_name)
+            return f"{agent_name.title()} muted."
+        return f"Unknown agent: {agent_name}"
+
+    def unmute_agent(self, agent_name: str) -> str:
+        """Unmute an agent."""
+        self.muted_agents.discard(agent_name)
+        return f"{agent_name.title()} unmuted."
 
 
     def handle(self, message: Message) -> tuple[str, str]:
@@ -41,6 +55,19 @@ class Router:
         clean = text.strip().lower()
 
         try:
+            # Check for mute/unmute commands
+            if clean.startswith("mute "):
+                agent_to_mute = clean.split("mute ", 1)[1].strip()
+                reply = self.mute_agent(agent_to_mute)
+                self.logger.info(f"user={user_id} action=mute agent={agent_to_mute}")
+                return "system", reply
+
+            if clean.startswith("unmute "):
+                agent_to_unmute = clean.split("unmute ", 1)[1].strip()
+                reply = self.unmute_agent(agent_to_unmute)
+                self.logger.info(f"user={user_id} action=unmute agent={agent_to_unmute}")
+                return "system", reply
+            
             if not text or text.strip() == "":
                 return self._fallback_to_blanca(message, "empty_message")
 
@@ -49,21 +76,34 @@ class Router:
                 reply = self.blanca.respond(text)
 
             elif clean == "jb" or clean.startswith("jb,") or clean.startswith("jb "):
-                agent_name = "jb"
-                # Strip "jb" prefix if present
+                # Strip prefix first
                 if clean != "jb":
                     user_message = text.split("jb", 1)[1].strip(",: ")
                 else:
                     user_message = text
-                reply = self.jb.respond(user_message)
+                
+                # Check if muted BEFORE setting agent_name
+                if "jb" in self.muted_agents:
+                    agent_name = "bart"
+                    reply = self.bart.respond(user_message)
+                else:
+                    agent_name = "jb"
+                    reply = self.jb.respond(user_message)
 
             elif clean == "bernie" or clean.startswith("bernie,") or clean.startswith("bernie "):
-                agent_name = "bernie"
-                # Strip "bernie:" or "bernie," prefix
+                # Strip prefix first
                 if clean != "bernie":
-                    user_message = text.split("bernie", 1)[1].strip(":, ")
-                else: user_message = text
-                reply = self.bernie.respond(user_message)
+                    user_message = text.split("bernie", 1)[1].strip(",: ")
+                else:
+                    user_message = text
+                
+                # Check if muted BEFORE setting agent_name
+                if "bernie" in self.muted_agents:
+                    agent_name = "bart"
+                    reply = self.bart.respond(user_message)
+                else:
+                    agent_name = "bernie"
+                    reply = self.bernie.respond(user_message)
 
             elif clean.startswith("bukowski"):
                 agent_name = "bukowski"

@@ -1,45 +1,12 @@
 #!/usr/bin/env python3
 """
 Interactive terminal interface for LPBD agents.
-
-Usage:
-    python send.py
-
-Then just type messages. Type 'exit' or 'quit' to stop.
-All messages are logged to logs/lpbd.log for later analysis.
 """
 
 from time import time
 
 from src.router import Router
 from src.schemas.message import Message
-
-
-
-def send_message(text: str, user_id: str = "test_user") -> None:
-    """
-    Send a message through the router and print the response.
-    
-    Args:
-        text: Message to send
-        user_id: User identifier (defaults to test_user)
-    """
-    router = Router()
-    
-    msg = Message(
-        user_id=user_id,
-        text=text,
-        timestamp=time()
-    )
-    
-    try:
-        agent_name, reply = router.handle(msg)
-        
-        # Print response cleanly (no log prefix)
-        print(f"\n{agent_name.upper()}: {reply}\n")
-        
-    except Exception as e:
-        print(f"\nError: {e}\n")
 
 
 def main():
@@ -50,6 +17,8 @@ def main():
     print("Type 'exit' or 'quit' to stop.\n")
     print("All messages logged to: logs/lpbd.log\n")
     print("=" * 60)
+    
+    router = Router()  # CREATE ONCE HERE
     
     while True:
         try:
@@ -62,7 +31,15 @@ def main():
                 print("\nGoodbye.\n")
                 break
             
-            send_message(message)
+            # Use the same router instance
+            msg = Message(
+                user_id="test_user",
+                text=message,
+                timestamp=time()
+            )
+            
+            agent_name, reply = router.handle(msg)
+            print(f"\n{agent_name.upper()}: {reply}\n")
             
         except KeyboardInterrupt:
             print("\n\nGoodbye.\n")

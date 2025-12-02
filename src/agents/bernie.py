@@ -1,5 +1,5 @@
 
-
+import re
 from src.agents.llm_client import LLMClient
 
 
@@ -24,11 +24,14 @@ class Bernie:
             return "Should I read you a story?"
 
         try:
-            return self.llm.call(
+            response = self.llm.call(
                 system_prompt=self.prompt,
                 user_text=text,
-                max_tokens=250,
+                max_tokens=200,
             )
+            # Strip stage directions
+            response = re.sub(r'\*[^*]*\*', '', response).strip()
+            return response
         except Exception as e:
             # Show actual error for debugging
             return f"Bernie error: {str(e)}"
