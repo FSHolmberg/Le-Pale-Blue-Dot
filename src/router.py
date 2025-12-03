@@ -72,12 +72,18 @@ class Router:
     def _detect_crisis(self, text: str) -> bool:
         """Detect crisis language that should route to Hermes."""
         crisis_patterns = [
-            "kill myself", "end it all", "suicide", "want to die", "end my life",
+            "kill myself", "kill my", "end it all", "suicide", "want to die", "end my life",
             "hurt myself", "self harm", "cut myself", "hurting someone"
             "kill someone", "hurt someone", "hurt my", "hurting my",
             "hurting them", "hurt them", "murder", "going to hurt"
         ]
         clean = text.lower()
+
+        if "suicide" in clean:
+            # Allow "suicide mission" as false positive
+            if "suicide mission" in clean:
+                return False
+            
         return any(pattern in clean for pattern in crisis_patterns)
     
     def mute_agent(self, agent_name: str) -> str:

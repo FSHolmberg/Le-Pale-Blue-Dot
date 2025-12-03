@@ -19,5 +19,12 @@ logs/
 # Pytest cache
 .pytest_cache/
 
-# User data (don't commit personal conversations)
-data/
+# User data - should never be committed
+data/history.json
+data/ledger.json
+logs/*.log
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
