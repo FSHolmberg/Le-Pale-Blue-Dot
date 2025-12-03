@@ -42,22 +42,31 @@ class Router:
     def save_state(self) -> None:
         """Save conversation history to disk."""
         self.history_persistence.save(self.history)
-        self.logger.info("History saved to disk")
+        self.logger.info("State saved", extra={
+            "action": "save",
+            "type": "history"})
 
     def load_state(self) -> None:
         """Load conversation history from disk."""
         self.history = self.history_persistence.load()
-        self.logger.info("History loaded from disk")
+        self.logger.info("State saved", extra={
+            "action": "save",
+            "type": "history"})
 
     def save_ledger(self) -> None:
         """Save Bukowski's ledger to disk."""
         self.ledger_persistence.save(self.ledger)
-        self.logger.info("Ledger saved to disk")
+        self.logger.info("State saved", extra={
+            "action": "save",
+            "type": "history"})
 
     def _fallback_to_blanca(self, message: Message, reason: str) -> tuple[str, str]:
         reply = "Blanca: Something broke. Cleaner needs the room."
-        self.logger.error(
-            f"router_fallback user={message.user_id} reason={reason} text={getattr(message, 'text', None)!r}")
+        self.logger.error("Router fallback triggered", extra={
+            "user_id": message.user_id,
+            "reason": reason,
+            "text": getattr(message, 'text', None)
+            })
         return "blanca", reply
     
     def _detect_crisis(self, text: str) -> bool:
@@ -104,20 +113,29 @@ class Router:
             # Pre-router scan for violations (CAPS, empty, etc.)
             has_violation, warning = self._pre_route_scan(text)
             if has_violation:
-                self.logger.warning(f"user={user_id} violation=tone warning={warning!r}")
+                self.logger.warning("Rule violation", extra={
+                "user_id": user_id,
+                "violation_type": "tone",
+                "warning": warning})
                 return "blanca", warning
             
             # Check for mute/unmute commands
             if clean.startswith("mute "):
                 agent_to_mute = clean.split("mute ", 1)[1].strip()
                 reply = self.mute_agent(agent_to_mute)
-                self.logger.info(f"user={user_id} action=mute agent={agent_to_mute}")
+                self.logger.info("Mute command", extra={
+                    "user_id": user_id,
+                    "action": "mute",
+                    "agent": agent_to_mute})
                 return "system", reply
 
             if clean.startswith("unmute "):
                 agent_to_unmute = clean.split("unmute ", 1)[1].strip()
                 reply = self.unmute_agent(agent_to_unmute)
-                self.logger.info(f"user={user_id} action=unmute agent={agent_to_unmute}")
+                self.logger.info("Unmute command", extra={
+                    "user_id": user_id,
+                    "action": "unmute",
+                    "agent": agent_to_unmute})
                 return "system", reply
             
             # Debug command
@@ -219,13 +237,17 @@ class Router:
             
             #autosave after each turn
             self.save_state()
-            self.logger.info(f"user={message.user_id} agent={agent_name} text={text!r} reply={reply!r}")
-
+            self.logger.info("Turn completed", extra={
+                "user_id": message.user_id,
+                "agent": agent_name,
+                "user_text": text,
+                "reply_text": reply})
             return agent_name, reply
 
         except Exception:
-            self.logger.exception(
-                f"router_handle_exception user={message.user_id} text={getattr(message, 'text', None)!r}")
+            self.logger.exception("Exception in handle", extra={
+                "user_id": message.user_id,
+                "text": getattr(message, 'text', None)})
             
             return self._fallback_to_blanca(message, "exception_in_handle")
     
