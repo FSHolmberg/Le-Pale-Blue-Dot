@@ -1,151 +1,182 @@
 # Le Pale Blue Dot (LPBD)
 
-A multi-agent conversational system set in a noir bar. Each agent represents a 
-distinct cognitive function: clarity (Bart), safety (Blanca), language (JB), 
-warmth (Bernie), ethics (Hermes), and memory (Bukowski).
+A philosophy-grounded multi-agent conversational system set in a noir bar in Paris, where each character represents distinct cognitive functions.
 
----
+## Current Status
 
-## Status (Week 2)
+**Phase 1: Core Implementation (In Progress)**
 
-**Working:**
-- Bart (bartender, life advice via power-law thinking)
-- Bernie (optimist, tells positive historical stories)
-- JB (language critic, triggered manually)
-- Blanca (safety, moderates caps/abuse)
-- Bukowski (ledger, logs user notes)
+- Router with mute/unmute functionality
+- Crisis detection and ethical routing
+- Pre-router scanning for tone violations
+- Message history tracking
+- 5 agents fully implemented and tested
 
-**In Progress:**
-- Hermes (ethical override)
-- Agent auto-triggering (JB, Hermes)
-- Mute/unmute toggles
-- Pre-router safety scan
+**Agents Implemented:**
+- **Bart** - Bartender (probing, Taleb's antifragility) - 3/3 tests passing
+- **Bernie** - Optimist (positive historical stories, Camus's affirmation) - 3/3 tests passing
+- **JB** - Language critic (precision, irritated clarity) - 3/3 tests passing
+- **Hermes** - Ethical oversight (crisis intervention, resources) - 5/5 tests passing
+- **Bukowski** - Ledger/logging system (mechanical archivist) - 15/15 tests passing
+- **Blanca** - Moderator (tactical referee, conversation flow) - 11/11 tests passing
 
-**Tests:** 23 passing
+**Total: 40/40 behavioral tests passing**
 
----
+## Philosophy
 
-## Quick Start
+Each agent embodies specific philosophical concepts:
 
-### Install dependencies:
-```bash
-pip install anthropic pyyaml pytest
+- **Bart**: Nassim Taleb's antifragility - systems that gain from disorder
+- **Bernie**: Camus's affirmation without hope - present-focused positivity
+- **JB**: Linguistic precision inspired by "The Fall" - language as moral responsibility
+- **Blanca**: Capablanca's tactical clarity - structure over content
+- **Hermes**: Stoic ethics with practical intervention
+- **Bukowski**: Charles Bukowski's gritty realism - unadorned truth
+
+## Architecture
+
+```
+User Input
+    ↓
+Blanca Pre-Router Scan (CAPS, empty messages)
+    ↓
+Crisis Detection (routes to Hermes if triggered)
+    ↓
+Router (parses agent prefix: "bart:", "bernie:", etc.)
+    ↓
+Agent Response (via Claude API)
+    ↓
+History Logging
 ```
 
-### Set API key:
+## Installation
+
 ```bash
+# Clone repository
+git clone [your-repo-url]
+cd lpbd
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up API key
 export ANTHROPIC_API_KEY="your-key-here"
 ```
 
-### Run interactive terminal:
+## Usage
+
 ```bash
-python send.py
+# Run LPBD
+python3 src/main.py
+
+# Run tests
+pytest src/tests/ -v
+
+# Run specific agent tests
+pytest src/tests/test_bart.py -v
+pytest src/tests/test_bukowski.py -v
+pytest src/tests/test_blanca.py -v
+
+# Clear LLM cache (after prompt changes)
+make cache
+
+# Clean Python cache
+make clean
+
+# Run chat via send.py
+make run
 ```
 
-### Test agents:
-```bash
-pytest -q
+## Commands
+
+**Agent routing:**
+```
+bart: [your message]      # Talk to Bart (default if no prefix)
+bernie: [your message]    # Talk to Bernie
+jb: [your message]        # Talk to JB
+blanca: [your message]    # Talk to Blanca
+bukowski: note            # Log current conversation state
+bukowski: show last       # Show last logged entry
+bukowski: delete last     # Remove last entry
 ```
 
----
-
-## Architecture
+**System commands:**
 ```
-User message
-    ↓
-Router (routes based on prefix or content)
-    ↓
-Agent (Bart, Bernie, JB, Blanca, Bukowski, Hermes)
-    ↓
-LLMClient (Claude API wrapper)
-    ↓
-Response logged + returned
+mute [agent]              # Silence an agent
+unmute [agent]            # Restore an agent
 ```
 
-**Agents:**
-- **Bart:** Default. Probes for clarity, suggests antifragile paths.
-- **Bernie:** Prefix `bernie:`. Tells warm historical stories.
-- **JB:** Triggered by `jb`. Critiques language quality.
-- **Blanca:** Triggered by CAPS. Moderates behavior.
-- **Bukowski:** Prefix `bukowski:`. Logs and retrieves notes.
-- **Hermes:** (Coming) Ethical override for sensitive topics.
-
-**Routing:**
-- CAPS → Blanca
-- `jb` → JB
-- `bernie: ...` → Bernie
-- `bukowski: ...` → Bukowski
-- Everything else → Bart
-
----
+**Crisis triggers:**
+Any mention of self-harm, suicide, or violence automatically routes to Hermes.
 
 ## Project Structure
+
 ```
 lpbd/
 ├── src/
 │   ├── agents/
-│   │   ├── bart.py          # Bartender (power-law probing)
-│   │   ├── bernie.py        # Optimist (historical stories)
-│   │   ├── jb.py            # Language critic
-│   │   ├── blanca.py        # Safety/moderation
-│   │   ├── bukowski.py      # Ledger commands
-│   │   ├── bukowski_ledger.py  # Memory storage
-│   │   ├── hermes.py        # Ethical interjector (stub)
-│   │   └── llm_client.py    # Claude API wrapper
+│   │   ├── bart.py              # Bartender agent
+│   │   ├── bernie.py            # Optimist agent
+│   │   ├── jb.py                # Language critic agent
+│   │   ├── hermes.py            # Ethical oversight agent
+│   │   ├── bukowski.py          # Ledger system
+│   │   ├── bukowski_ledger.py   # Ledger data structure
+│   │   └── blanca.py            # Moderator agent
 │   ├── config/
-│   │   ├── loader.py        # YAML config loader
-│   │   └── prompts.yaml     # Agent system prompts
-│   ├── schemas/
-│   │   └── message.py       # Pydantic message schema
-│   └── tests/               # Pytest suite
-├── router.py                # Message routing logic
-├── history.py               # Conversation history
-├── send.py                  # Interactive terminal interface
-└── README.md
+│   │   ├── loader.py            # Configuration loader
+│   │   └── prompts.yaml         # Agent system prompts
+│   ├── tests/
+│   │   ├── test_bart.py
+│   │   ├── test_bernie.py
+│   │   ├── test_jb.py
+│   │   ├── test_hermes.py
+│   │   ├── test_bukowski.py
+│   │   └── test_blanca.py
+│   ├── history.py               # Message history tracking
+│   ├── llm_client.py            # Claude API wrapper
+│   ├── message.py               # Message data structure
+│   ├── router.py                # Main routing logic
+│   ├── logger_setup.py          # Logging configuration
+│   └── main.py                  # Entry point
+├── Makefile                     # Build commands
+├── requirements.txt             # Python dependencies
+└── README.md                    # This file
 ```
 
----
+## Development Principles
 
-## Philosophy
+1. **Philosophy-driven design** - Each agent has clear conceptual grounding
+2. **Behavioral testing** - Verify personality, not just functionality
+3. **Modularity** - Components can be extracted (see Bukowski extraction)
+4. **Git discipline** - Commit after each working feature
 
-LPBD is grounded in absurdist philosophy (Camus) and antifragility (Taleb). 
+## Testing Philosophy
 
-**Core principles:**
-- Life follows power laws, not normal distributions
-- Most attempts fail; rare attempts yield massive returns
-- The bar is a place to stop lying and start building something real
-- Agents probe for signal, not comfort
+Tests validate **behavior** not just function:
+- Agents maintain consistent personality (tone, brevity, style)
+- No meta-commentary ("as an AI", "language model")
+- No stage directions (asterisks, action brackets)
+- Appropriate emotional detachment/warmth per agent
 
----
+## Technical Stack
 
-## Development Roadmap
-
-**Phase 1 (Now → March 2026):**
-- Week 1: Bart + Claude API integration
-- Week 2: Bernie + JB + interactive send.py
-- Week 3-4: Hermes, agent auto-triggering, safety layer
-- Deliverable: 5 agents working, 50+ tests, v0.1 tag
-
-**Phase 2 (April → Sept 2026):**
-- FastAPI deployment
-- Comprehensive testing
-- Holmberg Grid (memory tool)
-- Decency Digest (Bernie's archive)
-- Deliverable: Production-ready v1.0
-
-**Phase 3 (Oct 2026+):**
-- UI (noir graphic novel aesthetic)
-- CI/CD pipeline
-- Monitoring & observability
-
----
+- **Python 3.14**
+- **Anthropic Claude API** (claude-3-5-sonnet-20241022)
+- **pytest** for testing
+- **YAML** for configuration
 
 ## Contributing
 
-This is a solo learning project. Not accepting PRs yet.
-
----
+This is a personal learning/portfolio project. Not currently accepting contributions, but feedback and suggestions are welcome.
 
 ## License
 
-Proprietary. Not open source (yet).
+[Add license]
+
+## Contact
+
+fsholmberg@gmail.com
