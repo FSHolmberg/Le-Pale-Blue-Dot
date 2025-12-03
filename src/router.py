@@ -14,6 +14,7 @@ from src.history import MessageHistory
 from src.config.loader import Config
 from src.logging_setup import setup_logger
 from src.agents.bukowski_ledger import BukowskiLedger
+from src.persistence import HistoryPersistence, LedgerPersistence
 
 
 class Router:
@@ -24,10 +25,34 @@ class Router:
         self.jb = JB(prompt=self.config.get_prompt("jb"))
         self.bernie = Bernie(prompt=self.config.get_prompt("bernie"))
         self.hermes = Hermes(prompt=self.config.get_prompt("hermes"))
-        self.history = history or MessageHistory()
-        self.ledger = BukowskiLedger()
+
+        self.history_persistence = HistoryPersistence()
+        # Load existing history if available, otherwise use provided or create new
+        if history is None:
+            self.history = self.history_persistence.load()
+        else:
+            self.history = history
+        
+        self.ledger_persistence = LedgerPersistence()
+        self.ledger = self.ledger_persistence.load()
+
         self.logger = setup_logger()
         self.muted_agents = set()
+
+    def save_state(self) -> None:
+        """Save conversation history to disk."""
+        self.history_persistence.save(self.history)
+        self.logger.info("History saved to disk")
+
+    def load_state(self) -> None:
+        """Load conversation history from disk."""
+        self.history = self.history_persistence.load()
+        self.logger.info("History loaded from disk")
+
+    def save_ledger(self) -> None:
+        """Save Bukowski's ledger to disk."""
+        self.ledger_persistence.save(self.ledger)
+        self.logger.info("Ledger saved to disk")
 
     def _fallback_to_blanca(self, message: Message, reason: str) -> tuple[str, str]:
         reply = "Blanca: Something broke. Cleaner needs the room."
@@ -47,18 +72,28 @@ class Router:
         return any(pattern in clean for pattern in crisis_patterns)
     
     def mute_agent(self, agent_name: str) -> str:
-        """Mute an agent."""
-        valid_agents = ["bart", "bernie", "jb", "blanca", "bukowski", "hermes"]
-        if agent_name in valid_agents:
+        """Mute an agent (only Bernie, JB, and Bukowski can be muted)."""
+        mutable_agents = ["bernie", "jb", "bukowski"]
+        
+        if agent_name in mutable_agents:
             self.muted_agents.add(agent_name)
             return f"{agent_name.title()} muted."
-        return f"Unknown agent: {agent_name}"
+        elif agent_name in ["bart", "blanca", "hermes"]:
+            return f"{agent_name.title()} can't be muted - essential to the bar."
+        else:
+            return f"Unknown agent: {agent_name}"
 
     def unmute_agent(self, agent_name: str) -> str:
         """Unmute an agent."""
         self.muted_agents.discard(agent_name)
         return f"{agent_name.title()} unmuted."
-
+    
+    def _pre_route_scan(self, user_text: str) -> tuple[bool, str]:
+        """
+        Scan for rule violations before routing.
+        Returns (has_violation, blanca_response)
+        """
+        return self.blanca.scan_for_violations(user_text)
 
     def handle(self, message: Message) -> tuple[str, str]:
         user_id = message.user_id
@@ -66,6 +101,12 @@ class Router:
         clean = text.strip().lower()
 
         try:
+            # Pre-router scan for violations (CAPS, empty, etc.)
+            has_violation, warning = self._pre_route_scan(text)
+            if has_violation:
+                self.logger.warning(f"user={user_id} violation=tone warning={warning!r}")
+                return "blanca", warning
+            
             # Check for mute/unmute commands
             if clean.startswith("mute "):
                 agent_to_mute = clean.split("mute ", 1)[1].strip()
@@ -79,9 +120,16 @@ class Router:
                 self.logger.info(f"user={user_id} action=unmute agent={agent_to_unmute}")
                 return "system", reply
             
-            # Check for empty messages
-            if not text or text.strip() == "":
-                return self._fallback_to_blanca(message, "empty_message")
+            # Debug command
+            if clean == "history":
+                recent = self.history.get_recent(user_id, limit=5)
+                if not recent:
+                    reply = "No history found."
+                else:
+                    reply = f"Last {len(recent)} turns:\n"
+                    for turn in recent:
+                        reply += f"- {turn.agent}: {turn.user_text[:50]}...\n"
+                return "system", reply
             
             # Check for crisis (route to Hermes)
             if self._detect_crisis(text):
@@ -92,11 +140,10 @@ class Router:
                 agent_name = "blanca"
                 reply = self.blanca.respond(text)
 
-            elif clean == "jb" or clean.startswith("jb,") or clean.startswith("jb "):
-                # Strip prefix first
-                if clean != "jb":
-                    user_message = text.split("jb", 1)[1].strip(",: ")
-                else:
+            elif clean.startswith("jb"):
+                # Strip "agent:" or "agent," or "agent " prefix
+                user_message = text[2:].strip(":, ")  # Skip first 2 chars ("jb")
+                if not user_message:  # Just "jb" with nothing after
                     user_message = text
                 
                 # Check if muted BEFORE setting agent_name
@@ -107,11 +154,10 @@ class Router:
                     agent_name = "jb"
                     reply = self.jb.respond(user_message)
 
-            elif clean == "bernie" or clean.startswith("bernie,") or clean.startswith("bernie "):
-                # Strip prefix first
-                if clean != "bernie":
-                    user_message = text.split("bernie", 1)[1].strip(",: ")
-                else:
+            elif clean.startswith("bernie"):
+                # Strip "agent:" or "agent," or "agent " prefix
+                user_message = text[6:].strip(":, ")  # Skip first 6 chars ("bernie")
+                if not user_message:  # Just "bernie" with nothing after
                     user_message = text
                 
                 # Check if muted BEFORE setting agent_name
@@ -122,6 +168,19 @@ class Router:
                     agent_name = "bernie"
                     reply = self.bernie.respond(user_message)
 
+            elif clean.startswith("blanca"):
+                # Strip "agent:" or "agent," or "agent " prefix
+                user_message = text[6:].strip(":, ")  # Skip first 6 chars ("blanca")
+                if not user_message:  # Just "blanca" with nothing after
+                    user_message = text
+
+                if "blanca" in self.muted_agents:
+                    agent_name = "bart"
+                    reply = self.bart.respond(user_message)
+                else:
+                    agent_name = "blanca"
+                    reply = self.blanca.respond(user_message)
+
             elif clean.startswith("bukowski"):
                 agent_name = "bukowski"
                 reply = bukowski.handle_bukowski(
@@ -130,10 +189,21 @@ class Router:
                     history=self.history,
                     ledger=self.ledger,
                     now=time())
+                
+                self.save_ledger()
 
             elif clean.startswith("hermes"):
-                agent_name = "hermes"
-                reply = self.hermes.respond(text)
+                # Strip "agent:" or "agent," or "agent " prefix
+                user_message = text[6:].strip(":, ")  # Skip first 6 chars ("hermes")
+                if not user_message:  # Just "hermes" with nothing after
+                    user_message = text
+
+                if "hermes" in self.muted_agents:
+                    agent_name = "bart"
+                    reply = self.bart.respond(user_message)
+                else:
+                    agent_name = "hermes"
+                    reply = self.hermes.respond(user_message)
 
             else:
                 agent_name = "bart"
@@ -146,7 +216,9 @@ class Router:
                 user_text=text,
                 reply_text=reply,
                 ts=time())
-
+            
+            #autosave after each turn
+            self.save_state()
             self.logger.info(f"user={message.user_id} agent={agent_name} text={text!r} reply={reply!r}")
 
             return agent_name, reply
