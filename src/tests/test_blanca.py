@@ -1,3 +1,6 @@
+import pytest
+pytestmark = pytest.mark.slow
+
 import sys
 from pathlib import Path
 

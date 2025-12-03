@@ -1,12 +1,6 @@
-"""
-Behavioral tests for LPBD agents.
 
-These test *how* agents respond, not just *that* they respond.
-Run manually, document results, refine prompts based on findings.
-
-Usage:
-    pytest tests/test_agent_behavior.py -v -s
-"""
+import pytest
+pytestmark = pytest.mark.slow
 
 import sys
 from pathlib import Path

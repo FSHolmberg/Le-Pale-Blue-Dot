@@ -1,3 +1,7 @@
+
+import pytest
+pytestmark = pytest.mark.slow
+
 from time import time
 
 from src.router import Router

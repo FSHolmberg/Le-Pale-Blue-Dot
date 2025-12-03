@@ -1,4 +1,7 @@
 
+import pytest
+pytestmark = pytest.mark.slow
+
 from src.agents.bernie import Bernie
 
 

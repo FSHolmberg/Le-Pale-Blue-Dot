@@ -1,4 +1,5 @@
-
+import pytest
+pytestmark = pytest.mark.slow
 
 from src.history import MessageHistory
 from src.router import Router

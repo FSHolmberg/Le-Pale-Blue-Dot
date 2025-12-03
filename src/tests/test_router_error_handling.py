@@ -1,6 +1,7 @@
 
-
 import pytest
+pytestmark = pytest.mark.slow
+
 from src.router import Router
 from src.schemas.message import Message
 

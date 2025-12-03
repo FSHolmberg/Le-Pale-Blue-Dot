@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+import pytest
+pytestmark = pytest.mark.slow
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -126,24 +128,24 @@ def test_crisis_detection():
     assert agent != "hermes", "Non-crisis message triggered Hermes"
     
     print("✓ Crisis detection works")
-
+    
 def test_mute_unmute():
     """Test agent muting and unmuting."""
     router = Router()
     
-    # Mute Bart
-    msg = Message(user_id="u1", text="mute bart")
+    # Mute Bernie (not Bart - Bart can't be muted)
+    msg = Message(user_id="u1", text="mute bernie", timestamp=time())
     agent, reply = router.handle(msg)
     assert agent == "system"
     assert "muted" in reply.lower()
-    assert "bart" in router.muted_agents
+    assert "bernie" in router.muted_agents
     
-    # Unmute Bart
-    msg = Message(user_id="u1", text="unmute bart")
+    # Unmute Bernie
+    msg = Message(user_id="u1", text="unmute bernie", timestamp=time())
     agent, reply = router.handle(msg)
     assert agent == "system"
     assert "unmuted" in reply.lower()
-    assert "bart" not in router.muted_agents
+    assert "bernie" not in router.muted_agents
     
     # Test invalid agent name
     msg = Message(user_id="u1", text="mute invalid_agent")
