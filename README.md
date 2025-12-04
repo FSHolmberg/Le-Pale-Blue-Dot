@@ -1,6 +1,6 @@
 # Le Pale Blue Dot (LPBD)
 
-A philosophy-grounded multi-agent conversational system set in a noir bar in Paris, where each character represents distinct cognitive functions.
+A philosophy-grounded multi-agent conversational system set in a noir bar in in a northern port town, where each character represents distinct cognitive functions.
 
 ## Current Status
 

@@ -1,6 +1,6 @@
 import yaml
 from pathlib import Path
-from calais_weather import get_environment_for_agent
+from src.calais_weather import get_environment_for_agent
 
 
 class Config:
