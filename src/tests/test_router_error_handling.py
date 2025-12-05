@@ -17,7 +17,7 @@ def test_router_fallback_on_agent_exception(monkeypatch):
     agent, reply = router.handle(msg)
 
     assert agent == "blanca"
-    assert "Cleaner needs the room" in reply
+    assert "Speak or pass." in reply
 
 def test_router_fallback_on_empty_message():
     router = Router()
@@ -26,4 +26,4 @@ def test_router_fallback_on_empty_message():
     agent, reply = router.handle(msg)
 
     assert agent == "blanca"
-    assert "Cleaner needs the room" in reply
+    assert "Speak or pass." in reply

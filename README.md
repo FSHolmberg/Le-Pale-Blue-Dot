@@ -1,182 +1,195 @@
 # Le Pale Blue Dot (LPBD)
 
-A philosophy-grounded multi-agent conversational system set in a noir bar in in a northern port town, where each character represents distinct cognitive functions.
+A philosophy-grounded multi-agent conversational AI system set in a noir bar in Calais, where six AI agents embody distinct philosophical perspectives and cognitive functions.
+
+[![PyPI version](https://badge.fury.io/py/lpbd.svg)](https://badge.fury.io/py/lpbd)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Installation
+
+```bash
+pip install lpbd
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/FSHolmberg/Le-Pale-Blue-Dot.git
+cd Le-Pale-Blue-Dot
+pip install -e .
+```
+
+## Quick Start
+
+```python
+from src.router import Router
+from src.schemas.message import Message
+from time import time
+
+# Set your Anthropic API key
+# export ANTHROPIC_API_KEY="your-key-here"
+
+# Initialize router
+router = Router()
+
+# Send a message
+msg = Message(
+    user_id="user1",
+    text="bart, what's your take on failure?",
+    timestamp=time()
+)
+agent, reply = router.handle(msg)
+
+print(f"{agent}: {reply}")
+```
+
+## The Agents
+
+Each agent represents a distinct philosophical perspective:
+
+**Bart** (Bartender) - Probing conversationalist inspired by Nassim Taleb's antifragility. Asks uncomfortable questions that reveal hidden assumptions.
+
+**Bernie** (Optimist) - Affirms the present without false hope, drawing from Camus's philosophy. Shares historical anecdotes of resilience.
+
+**JB** (Language Critic) - Demands linguistic precision. Inspired by Camus's "The Fall" - treats language as moral responsibility.
+
+**Blanca** (Moderator) - Tactical referee managing conversation flow. Named after chess master Capablanca - values structure over content.
+
+**Hermes** (Ethical Oversight) - Crisis intervention specialist. Stoic ethics with practical resources. Automatically triggered by crisis keywords.
+
+**Bukowski** (Ledger) - Mechanical archivist logging conversation states. Named after Charles Bukowski - unadorned truth-telling.
+
+## Usage
+
+### Direct agent routing
+
+```
+[message]                 # Talk to Bart (default)
+bernie: [message]         # Talk to Bernie  
+jb: [message]             # Talk to JB
+hermes: [message]         # Talk to Hermes
+blanca: [message]         # Talk to Hermes
+```
+
+### Bukowski commands
+
+```
+bukowski: note            # Log current conversation
+bukowski: show last       # Display last entry
+bukowski: delete last     # Remove last entry
+```
+
+### System commands
+
+```
+mute bernie               # Silence Bernie
+unmute bernie             # Restore Bernie
+```
+
+Note: Bart, Blanca, and Hermes cannot be muted (essential functions).
+
+### Crisis detection
+
+Messages containing self-harm or violence keywords automatically route to Hermes.
 
 ## Current Status
 
-**Phase 1: Core Implementation (In Progress)**
+**Version 0.1.0** - Core implementation complete
 
-- Router with mute/unmute functionality
+- 6 agents fully implemented with distinct personalities
 - Crisis detection and ethical routing
-- Pre-router scanning for tone violations
-- Message history tracking
-- 5 agents fully implemented and tested
-
-**Agents Implemented:**
-- **Bart** - Bartender (probing, Taleb's antifragility) - 3/3 tests passing
-- **Bernie** - Optimist (positive historical stories, Camus's affirmation) - 3/3 tests passing
-- **JB** - Language critic (precision, irritated clarity) - 3/3 tests passing
-- **Hermes** - Ethical oversight (crisis intervention, resources) - 5/5 tests passing
-- **Bukowski** - Ledger/logging system (mechanical archivist) - 15/15 tests passing
-- **Blanca** - Moderator (tactical referee, conversation flow) - 11/11 tests passing
-
-**Total: 40/40 behavioral tests passing**
-
-## Philosophy
-
-Each agent embodies specific philosophical concepts:
-
-- **Bart**: Nassim Taleb's antifragility - systems that gain from disorder
-- **Bernie**: Camus's affirmation without hope - present-focused positivity
-- **JB**: Linguistic precision inspired by "The Fall" - language as moral responsibility
-- **Blanca**: Capablanca's tactical clarity - structure over content
-- **Hermes**: Stoic ethics with practical intervention
-- **Bukowski**: Charles Bukowski's gritty realism - unadorned truth
+- Mute/unmute functionality
+- Message history persistence
+- Bukowski ledger system
+- 102 tests passing (97 behavioral + 5 property-based)
 
 ## Architecture
 
 ```
 User Input
     ↓
-Blanca Pre-Router Scan (CAPS, empty messages)
+Pre-Router Scan (caps, empty messages) → Blanca
     ↓
-Crisis Detection (routes to Hermes if triggered)
+Crisis Detection → Hermes (if triggered)
     ↓
-Router (parses agent prefix: "bart:", "bernie:", etc.)
+Agent Prefix Parsing (bart:, bernie:, etc.)
     ↓
-Agent Response (via Claude API)
+Mute Check (skip if muted)
     ↓
-History Logging
+Agent Response (Claude API)
+    ↓
+History + Ledger Logging
 ```
 
-## Installation
+## Development
 
 ```bash
-# Clone repository
-git clone [your-repo-url]
-cd lpbd
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up API key
-export ANTHROPIC_API_KEY="your-key-here"
-```
-
-## Usage
-
-```bash
-# Run LPBD
-python3 src/main.py
+# Clone and setup
+git clone https://github.com/FSHolmberg/Le-Pale-Blue-Dot.git
+cd Le-Pale-Blue-Dot
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
 
 # Run tests
 pytest src/tests/ -v
 
+# Run property-based tests
+pytest src/tests/test_properties.py -v
+
 # Run specific agent tests
 pytest src/tests/test_bart.py -v
-pytest src/tests/test_bukowski.py -v
-pytest src/tests/test_blanca.py -v
-
-# Clear LLM cache (after prompt changes)
-make cache
-
-# Clean Python cache
-make clean
-
-# Run chat via send.py
-make run
 ```
-
-## Commands
-
-**Agent routing:**
-```
-bart: [your message]      # Talk to Bart (default if no prefix)
-bernie: [your message]    # Talk to Bernie
-jb: [your message]        # Talk to JB
-blanca: [your message]    # Talk to Blanca
-bukowski: note            # Log current conversation state
-bukowski: show last       # Show last logged entry
-bukowski: delete last     # Remove last entry
-```
-
-**System commands:**
-```
-mute [agent]              # Silence an agent
-unmute [agent]            # Restore an agent
-```
-
-**Crisis triggers:**
-Any mention of self-harm, suicide, or violence automatically routes to Hermes.
 
 ## Project Structure
 
 ```
 lpbd/
 ├── src/
-│   ├── agents/
-│   │   ├── bart.py              # Bartender agent
-│   │   ├── bernie.py            # Optimist agent
-│   │   ├── jb.py                # Language critic agent
-│   │   ├── hermes.py            # Ethical oversight agent
-│   │   ├── bukowski.py          # Ledger system
-│   │   ├── bukowski_ledger.py   # Ledger data structure
-│   │   └── blanca.py            # Moderator agent
-│   ├── config/
-│   │   ├── loader.py            # Configuration loader
-│   │   └── prompts.yaml         # Agent system prompts
-│   ├── tests/
-│   │   ├── test_bart.py
-│   │   ├── test_bernie.py
-│   │   ├── test_jb.py
-│   │   ├── test_hermes.py
-│   │   ├── test_bukowski.py
-│   │   └── test_blanca.py
-│   ├── history.py               # Message history tracking
-│   ├── llm_client.py            # Claude API wrapper
-│   ├── message.py               # Message data structure
-│   ├── router.py                # Main routing logic
-│   ├── logger_setup.py          # Logging configuration
-│   └── main.py                  # Entry point
-├── Makefile                     # Build commands
-├── requirements.txt             # Python dependencies
-└── README.md                    # This file
+│   ├── agents/          # Six philosophical AI agents
+│   ├── config/          # YAML configuration and prompts
+│   ├── tests/           # 102 behavioral and property tests
+│   ├── router.py        # Main routing logic
+│   ├── history.py       # Message persistence
+│   └── main.py          # CLI entry point
+├── pyproject.toml       # Package configuration
+└── README.md
 ```
 
-## Development Principles
+## Philosophy
 
-1. **Philosophy-driven design** - Each agent has clear conceptual grounding
-2. **Behavioral testing** - Verify personality, not just functionality
-3. **Modularity** - Components can be extracted (see Bukowski extraction)
-4. **Git discipline** - Commit after each working feature
+LPBD explores philosophical concepts through conversational AI:
 
-## Testing Philosophy
-
-Tests validate **behavior** not just function:
-- Agents maintain consistent personality (tone, brevity, style)
-- No meta-commentary ("as an AI", "language model")
-- No stage directions (asterisks, action brackets)
-- Appropriate emotional detachment/warmth per agent
+- **Antifragility** (Bart) - Systems that gain from disorder
+- **Absurdism** (Bernie) - Affirmation without false hope  
+- **Linguistic Ethics** (JB) - Language as moral responsibility
+- **Tactical Clarity** (Blanca) - Structure enables freedom
+- **Stoic Intervention** (Hermes) - Practical ethics in crisis
+- **Unadorned Truth** (Bukowski) - Documentation without interpretation
 
 ## Technical Stack
 
-- **Python 3.14**
-- **Anthropic Claude API** (claude-3-5-sonnet-20241022)
-- **pytest** for testing
-- **YAML** for configuration
+- Python 3.10+
+- Anthropic Claude API (Sonnet 4)
+- Pydantic for data validation
+- Pytest + Hypothesis for testing
+- YAML configuration
 
-## Contributing
+## Roadmap
 
-This is a personal learning/portfolio project. Not currently accepting contributions, but feedback and suggestions are welcome.
+- Flask web interface
+- Railway deployment
+- Bukowski standalone desktop app
+- Visual novel integration (Hugo Pratt/Sean Phillips aesthetic)
+- Enhanced weather integration
 
 ## License
 
-[Add license]
+MIT License - see LICENSE file
 
-## Contact
+## Author
 
-fsholmberg@gmail.com
+Fredrik Holmberg  
+Email: fredriksayedholmberg@gmail.com  
+GitHub: [@FSHolmberg](https://github.com/FSHolmberg)

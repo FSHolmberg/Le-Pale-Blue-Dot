@@ -32,9 +32,8 @@ class JB:
                 user_text=text,
                 max_tokens=200,
             )
-            # Remove asterisks around single words (emphasis), remove entire multi-word phrases (stage directions)
-            response = re.sub(r'\*(\w+)\*', r'\1', response)  # *word* -> word
-            response = re.sub(r'\*[^*]*\s+[^*]+\*', '', response)  # Remove multi-word stage directions
+            # Remove ALL asterisks - JB should never use them
+            response = response.replace('*', '')
             response = response.strip()
             return response.strip()
         

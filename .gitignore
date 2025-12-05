@@ -1,8 +1,8 @@
-# Virtual environment folder (CRUCIAL)
+# Virtual environment 
 venv/
 .venv/
 
-# Environment variables (API keys) (CRUCIAL)
+# Environment variables 
 .env
 
 # Python compiled files
@@ -19,7 +19,7 @@ logs/
 # Pytest cache
 .pytest_cache/
 
-# User data - should never be committed
+# User data
 data/history.json
 data/ledger.json
 logs/*.log
@@ -28,3 +28,11 @@ logs/*.log
 .vscode/
 .idea/
 *.swp
+
+# Hypothesis
+.hypothesis/
+
+# Build artifacts (PyPI packaging)
+dist/
+build/
+*.egg-info/

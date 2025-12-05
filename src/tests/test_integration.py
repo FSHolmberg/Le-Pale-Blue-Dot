@@ -134,14 +134,14 @@ def test_mute_unmute():
     router = Router()
     
     # Mute Bernie (not Bart - Bart can't be muted)
-    msg = Message(user_id="u1", text="mute bernie", timestamp=time())
+    msg = Message(user_id="u1", text="mute bernie", timestamp=time.time())
     agent, reply = router.handle(msg)
     assert agent == "system"
     assert "muted" in reply.lower()
     assert "bernie" in router.muted_agents
     
     # Unmute Bernie
-    msg = Message(user_id="u1", text="unmute bernie", timestamp=time())
+    msg = Message(user_id="u1", text="unmute bernie", timestamp=time.time())
     agent, reply = router.handle(msg)
     assert agent == "system"
     assert "unmuted" in reply.lower()

@@ -51,15 +51,11 @@ class Blanca:
             (has_violation, warning_message) - If no violation, warning is empty
         """
         # Check for excessive CAPS (>70% of message)
-        if len(user_text) > 10:  # Only check messages with substance
-            caps_count = sum(1 for c in user_text if c.isupper())
-            total_letters = sum(1 for c in user_text if c.isalpha())
-            if total_letters > 0 and (caps_count / total_letters) > 0.7:
-                return (True, "Lower your voice. This is a bar, not a stadium.")
+        # Require at least 3 letters to avoid false positives on "OK" "YES" etc
+        caps_count = sum(1 for c in user_text if c.isupper())
+        total_letters = sum(1 for c in user_text if c.isalpha())
         
-        # Check for empty/whitespace-only messages
-        if not user_text.strip():
-            return (True, "Speak or pass. Don't waste the table's time.")
+        if total_letters >= 3 and (caps_count / total_letters) > 0.7:
+            return (True, "Lower your voice. This is a bar, not a stadium.")
         
-        # No violation detected
         return (False, "")
