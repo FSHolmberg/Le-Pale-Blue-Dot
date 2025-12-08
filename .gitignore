@@ -36,3 +36,13 @@ logs/*.log
 dist/
 build/
 *.egg-info/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+lpbd_dev
+
+# PostgreSQL
+*.pgsql
+*.dump
