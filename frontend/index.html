@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Le Pale Blue Dot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-container">
+
+        <!-- Main comic panel: exterior or interior -->
+        <div id="comic-panel" class="comic-panel exterior">
+            <div id="door-clickable" style="
+                position: absolute;
+                bottom: 16%;
+                left: 59%;
+                transform: translateX(-50%);
+                width: 300px;
+                height: 60%;
+                cursor: pointer;
+            "></div>
+
+            <!-- Speech bubbles container (only visible in interior) -->
+            <div id="speech-bubbles-container" style="display: none;">
+            </div>
+            
+            <!-- Agent portraits bar (only visible in interior) -->
+            <div class="agent-portrait" data-agent="bart" title="Lucidity" style="display: none;">
+                <span class="agent-initial">B</span>
+                <span class="agent-name">Bart</span>
+            </div>
+            <div class="agent-portrait" data-agent="bernie" title="Decency" style="display: none;">
+                <span class="agent-initial">B</span>
+                <span class="agent-name">Bernie</span>
+            </div>
+            <div class="agent-portrait" data-agent="jb" title="Clarity" style="display: none;">
+                <span class="agent-initial">JB</span>
+                <span class="agent-name">JB</span>
+            </div>
+            <div class="agent-portrait" data-agent="blanca" title="Boundary" style="display: none;">
+                <span class="agent-initial">B</span>
+                <span class="agent-name">Blanca</span>
+            </div>
+            <div class="agent-portrait" data-agent="hermes" title="Responsibilty" style="display: none;">
+                <span class="agent-initial">H</span>
+                <span class="agent-name">Hermes</span>
+            </div>
+            </div>
+        </div>
+
+        <!-- User input panel (only visible in interior) -->
+        <div id="input-panel" class="input-panel" style="display: none;">
+            <textarea 
+                id="user-input" 
+                placeholder="" 
+                maxlength="500"
+            ></textarea>
+            <div class="input-controls">
+                <span id="char-count" class="char-count">0/500</span>
+            </div>
+        </div>
+
+        <!-- Status message area -->
+        <div id="status-message" class="status-message"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -18,3 +18,6 @@ commit:
 	git add .
 	git status
 	@echo "Ready to commit. Run: git commit -m 'your message'"
+
+reload:
+	uvicorn src.api:app --reload

@@ -227,3 +227,57 @@ class Router:
                 "text": getattr(message, 'text', None)
             })
             return self._fallback_to_blanca(message, "exception_in_handle")
+        
+    def execute_agent(self, agent_name: str, message: Message) -> str:
+        """Execute a specific agent directly, bypassing routing logic."""
+        text = message.text or ""
+        user_id = message.user_id
+        
+        # Check if agent is muted (except Hermes and Blanca who can't be muted)
+        if agent_name in self.muted_agents and agent_name not in ["hermes", "blanca"]:
+            agent_name = "bart"  # Fallback to Bart if muted agent selected
+        
+        # Execute the selected agent
+        if agent_name == "bart":
+            reply = self.bart.respond(text)
+        elif agent_name == "bernie":
+            reply = self.bernie.respond(text)
+        elif agent_name == "jb":
+            reply = self.jb.respond(text)
+        elif agent_name == "blanca":
+            reply = self.blanca.respond(text)
+        elif agent_name == "hermes":
+            reply = self.hermes.respond(text)
+        elif agent_name == "bukowski":
+            reply = bukowski.handle_bukowski(
+                user_id=user_id,
+                raw_text=text,
+                history=self.history,
+                ledger=self.ledger,
+                now=time()
+            )
+            self.save_ledger()
+        else:
+            # Unknown agent, fallback to Bart
+            agent_name = "bart"
+            reply = self.bart.respond(text)
+        
+        # Log and persist turn
+        self.history.add_turn(
+            user_id=message.user_id,
+            agent=agent_name,
+            user_text=text,
+            reply_text=reply,
+            ts=time()
+        )
+        
+        # Autosave after each turn
+        self.save_state()
+        self.logger.info("Turn completed (direct selection)", extra={
+            "user_id": message.user_id,
+            "agent": agent_name,
+            "user_text": text,
+            "reply_text": reply
+        })
+        
+        return reply

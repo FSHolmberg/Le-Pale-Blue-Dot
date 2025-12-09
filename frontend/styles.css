@@ -1,0 +1,432 @@
+/* === Reset & Base Styles === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    line-height: 1.6;
+}
+
+/* === Page Layout === */
+.page-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+
+.session-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9em;
+    color: #8b949e;
+}
+
+#session-status {
+    color: #3fb950;
+}
+
+/* === Main Comic Panel === */
+.comic-panel {
+    position: relative;
+    width: 100%;
+    max-width: 1920px;
+    aspect-ratio: 16/9;
+    margin: 0 auto;
+    background-size: cover;
+    background-position: center center;
+}
+
+.comic-panel.exterior {
+    background-image: url('assets/lpbd-placeholder_Blanca_Exterior.png');
+}
+
+.comic-panel.interior {
+    background-image: url('assets/lpbd-placeholder_Interior.png');
+}
+
+/* === Weather Window === */
+.weather-window {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(22, 27, 34, 0.92);
+    backdrop-filter: blur(8px);
+    padding: 15px 20px;
+    border-radius: 6px;
+    border: 1px solid rgba(48, 54, 61, 0.8);
+    max-width: 300px;
+    font-size: 0.85em;
+    line-height: 1.5;
+    color: #8b949e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+/* === Speech Bubbles === */
+#speech-bubbles-container {
+    position: relative;
+    height: calc(100% - 100px);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#speech-bubbles-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#speech-bubbles-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#speech-bubbles-container::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+}
+
+#speech-bubbles-container::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+.speech-bubble {
+    position: relative;
+    background: rgba(193, 243, 247, 0.98);
+    color: #0a1f24;
+    padding: 16px 20px;
+    border-radius: 8px;
+    max-width: 70%;
+    border: 1px solid rgba(48, 54, 61, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    font-size: 0.95em;
+    animation: bubble-appear 0.3s ease-out;
+}
+
+@keyframes bubble-appear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.speech-bubble.user-bubble {
+    background: rgba(10, 72, 66, 0.15);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    color: #73dee1;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.speech-bubble.agent-bubble {
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+.speech-bubble.agent-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 30px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-top-color: rgba(255, 255, 255, 0.95);
+    border-bottom: 0;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+}
+
+.speech-bubble.system-bubble {
+    display: none;
+}
+
+.agent-name-tag {
+    font-weight: 600;
+    color: #58a6ff;
+    margin-bottom: 6px;
+    display: block;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+/* === Agent Bar === */
+.agent-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    align-items: center;
+    background: linear-gradient(to top, rgba(13, 17, 23, 0.95), rgba(13, 17, 23, 0.8));
+    padding: 12px;
+    border-top: 1px solid #30363d;
+}
+
+.agent-portrait {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: rgba(22, 27, 34, 0.8);
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.agent-portrait:hover {
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.6);
+    border-color: #58a6ff;
+}
+
+.agent-portrait.selected {
+    border-color: #58a6ff;
+    background: rgba(22, 27, 34, 1);
+    box-shadow: 0 0 16px rgba(88, 166, 255, 0.3);
+}
+
+.agent-portrait.muted {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.agent-portrait.muted:hover {
+    transform: none;
+    border-color: #30363d;
+}
+
+.agent-initial {
+    font-size: 1.6em;
+    font-weight: 300;
+    color: #58a6ff;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 17, 23, 0.9);
+    border-radius: 50%;
+    border: 1px solid #30363d;
+}
+
+.agent-name {
+    font-size: 0.7em;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+/* === Status Messages === */
+.status-message {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(22, 27, 34, 0.95);
+    color: #c9d1d9;
+    padding: 15px 20px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    max-width: 400px;
+    display: none;
+    animation: slide-in 0.3s ease-out;
+}
+
+.status-message.visible {
+    display: block;
+}
+
+.status-message.error {
+    border-color: #f85149;
+    background: rgba(22, 27, 34, 0.98);
+}
+
+.status-message.success {
+    border-color: #3fb950;
+    background: rgba(22, 27, 34, 0.98);
+}
+
+.status-message.warning {
+    border-color: #d29922;
+    background: rgba(22, 27, 34, 0.98);
+}
+
+@keyframes slide-in {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* === Responsive Design === */
+@media (max-width: 768px) {
+    .title-bar h1 {
+        font-size: 1.5em;
+    }
+    
+    .comic-panel {
+        height: 500px;
+    }
+    
+    .agent-bar {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .agent-portrait {
+        min-width: 60px;
+        padding: 8px;
+    }
+    
+    .agent-initial {
+        width: 40px;
+        height: 40px;
+        font-size: 1.4em;
+    }
+    
+    .speech-bubble {
+        max-width: 85%;
+    }
+}
+
+/* === Agent and Bubbles Positioning === */
+
+/* BART - behind bar, center */
+.agent-portrait[data-agent="bart"] {
+    position: absolute;
+    bottom: 44%;
+    left: 50%;
+    margin-left: -40px;
+}
+.speech-bubble[data-speaker="bart"] {
+    position: absolute;
+    top: 28%;
+    left: 48%;
+    transform: translateX(-50%);
+    max-width: 450px;
+}
+
+/* BERNIE - left of bar */
+.agent-portrait[data-agent="bernie"] {
+    position: absolute;
+    bottom: 35%;
+    left: 12%;
+    margin-left: 200px;
+}
+.speech-bubble[data-speaker="bernie"] {
+    position: absolute;
+    top: 18%;
+    left: 28%;
+    max-width: 500px;
+}
+
+/* JB - left table */
+.agent-portrait[data-agent="jb"] {
+    position: absolute;
+    bottom: 25%;
+    left: 12%;
+    margin-left: -50px;
+}
+.speech-bubble[data-speaker="jb"] {
+    position: absolute;
+    top: 12%;
+    left: 8%;
+    max-width: 550px;
+}
+
+/* BLANCA - by stairs */
+.agent-portrait[data-agent="blanca"] {
+    position: absolute;
+    bottom: 30%;
+    left: 55%;
+    margin-left: 140px;
+}
+.speech-bubble[data-speaker="blanca"] {
+    position: absolute;
+    top: 22%;
+    right: 22%;
+    max-width: 450px;
+}
+
+/* HERMES - right table */
+.agent-portrait[data-agent="hermes"] {
+    position: absolute;
+    bottom: 25%;
+    left: 75%;
+    margin-left: 140px;
+}
+.speech-bubble[data-speaker="hermes"] {
+    position: absolute;
+    top: 18%;
+    right: 8%;
+    max-width: 450px;
+}
+
+/* USER BUBBLE - centered above input */
+.speech-bubble.user-bubble {
+    position: absolute;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 500px;
+}
+
+.input-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    background: rgba(22, 27, 34, 0.95);
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+#user-input {
+    width: 100%;
+    min-height: 80px;
+    background: rgba(22, 27, 34, 0.95);
+    color: #c9d1d9;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 0.95em;
+    resize: none;
+}
+
+#user-input:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+.char-count {
+    color: #484f58;
+    font-size: 0.75em;
+    margin-top: 8px;
+    display: block;
+}

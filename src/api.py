@@ -1,10 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
 import time
+import secrets
+import os
+
+security = HTTPBasic()
 
 from src.router import Router
 from src.schemas.message import Message
@@ -12,6 +18,33 @@ from src.calais_weather import get_calais_environment
 from src.database.models import get_db, User, Session, Message as DBMessage
 
 app = FastAPI(title="Le Pale Blue Dot API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify HTTP Basic Auth credentials"""
+    correct_username = secrets.compare_digest(
+        credentials.username, 
+        os.getenv("LPBD_USERNAME", "lpbd_user")
+    )
+    correct_password = secrets.compare_digest(
+        credentials.password,
+        os.getenv("LPBD_PASSWORD", "changeme123")
+    )
+    
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
 
 # --- Request/Response Models ---
 
@@ -39,12 +72,14 @@ class MessageResponse(BaseModel):
 # --- Endpoints ---
 
 @app.post("/session/start", response_model=SessionStartResponse)
-def start_session(db: DBSession = Depends(get_db)):
+async def start_session(
+    username: str = Depends(verify_credentials),
+    db: DBSession = Depends(get_db)):
+    
     # Create user (for now, each session = new anonymous user)
     user = User(
         anonymous_id=str(uuid.uuid4()),
-        created_at=datetime.now(timezone.utc)
-    )
+        created_at=datetime.now(timezone.utc))
     db.add(user)
     db.commit()
     
@@ -57,8 +92,8 @@ def start_session(db: DBSession = Depends(get_db)):
         started_at=datetime.now(timezone.utc),
         status="active",
         weather=weather,
-        message_count=0
-    )
+        message_count=0)
+    
     db.add(session)
     db.commit()
     
@@ -66,11 +101,14 @@ def start_session(db: DBSession = Depends(get_db)):
         session_id=session.id,
         weather=weather,
         available_agents=["bart", "bernie", "jb", "blanca", "hermes"],
-        timestamp=datetime.now(timezone.utc).isoformat()
-    )
+        timestamp=datetime.now(timezone.utc).isoformat())
 
 @app.post("/message", response_model=MessageResponse)
-def send_message(request: MessageRequest, db: DBSession = Depends(get_db)):
+async def send_message(
+    request: MessageRequest,
+    username: str = Depends(verify_credentials),
+    db: DBSession = Depends(get_db)):
+
     # Get session from database
     session = db.query(Session).filter(Session.id == request.session_id).first()
     
@@ -81,8 +119,7 @@ def send_message(request: MessageRequest, db: DBSession = Depends(get_db)):
     if session.status in ["kicked", "ended"]:
         raise HTTPException(
             status_code=403,
-            detail=f"Session has {session.status}. Start a new session."
-        )
+            detail=f"Session has {session.status}. Start a new session.")
     
     # Check message limit
     if session.message_count >= 30:
@@ -119,9 +156,17 @@ def send_message(request: MessageRequest, db: DBSession = Depends(get_db)):
         text=request.content,
         timestamp=time.time()
     )
-    
-    # Get agent response
-    agent_name, agent_response = router.handle(msg)
+
+    # Check if user manually selected an agent
+    if request.selected_agent:
+        agent_name = request.selected_agent
+        # Execute the selected agent directly
+        agent_response = router.execute_agent(request.selected_agent, msg)
+    else:
+        # Use router's automatic routing logic
+        result = router.handle(msg)
+        print(f"DEBUG: router.handle returned: {result}, type: {type(result)}")
+        agent_name, agent_response = router.handle(msg)
     
     if warning:
         agent_response = f"{warning}\n\n{agent_response}"

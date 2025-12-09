@@ -1,39 +1,45 @@
 # Le Pale Blue Dot (LPBD)
 
-A philosophy-grounded multi-agent conversational AI system set in a noir bar in Calais, where six AI agents embody distinct philosophical perspectives and cognitive functions.
+A philosophy-grounded multi-agent conversational AI system set in a noir bar in Calais, where five AI agents embody distinct philosophical perspectives and cognitive functions.
 
 [![PyPI version](https://badge.fury.io/py/lpbd.svg)](https://badge.fury.io/py/lpbd)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Installation
+## Overview
 
-```bash
-pip install lpbd
-```
+LPBD is a conversational system where users interact with AI agents in a fictional bar on the northern French coast. Each agent has a distinct personality grounded in philosophical frameworks, creating conversations that challenge assumptions and explore ideas through multiple perspectives.
 
-Or install from source:
-
-```bash
-git clone https://github.com/FSHolmberg/Le-Pale-Blue-Dot.git
-cd Le-Pale-Blue-Dot
-pip install -e .
-```
+**Current Status**: Working prototype with functional frontend. Placeholder UI and active development toward soft opening to test audience.
 
 ## Quick Start
 
+### Web Interface (Recommended)
+```bash
+# Clone and setup
+git clone https://github.com/FSHolmberg/Le-Pale-Blue-Dot.git
+cd Le-Pale-Blue-Dot
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+
+# Set your API key
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Start the server
+make run
+
+# Open browser to http://localhost:8000
+```
+
+### Python API
 ```python
 from src.router import Router
 from src.schemas.message import Message
 from time import time
 
-# Set your Anthropic API key
-# export ANTHROPIC_API_KEY="your-key-here"
-
-# Initialize router
 router = Router()
 
-# Send a message
 msg = Message(
     user_id="user1",
     text="bart, what's your take on failure?",
@@ -44,68 +50,81 @@ agent, reply = router.handle(msg)
 print(f"{agent}: {reply}")
 ```
 
+## The Bar
+
+**Le Pale Blue Dot** - A 24/7 noir bar in Calais (opened November 1913, closes only on leap day). The bar features live weather from the English Channel, eclectic music (Afrobeat to The Young Gods), and five distinct voices.
+
 ## The Agents
 
-Each agent represents a distinct philosophical perspective:
+**Bart** (Bartender) - Welsh Traveller, pushing 50. Probing conversationalist who challenges assumptions and suggests bold moves. Inspired by antifragility concepts and absurdist lucidity.
 
-**Bart** (Bartender) - Probing conversationalist inspired by Nassim Taleb's antifragility. Asks uncomfortable questions that reveal hidden assumptions.
+**Bernie** (Optimist) - Affirms the present without false hope. Shares historical anecdotes of human decency and resilience. Knows the bar's history.
 
-**Bernie** (Optimist) - Affirms the present without false hope, drawing from Camus's philosophy. Shares historical anecdotes of resilience.
+**JB** (Language Critic) - Demands linguistic precision. Treats language as moral responsibility. A bit annoying, as language critics tend to be.
 
-**JB** (Language Critic) - Demands linguistic precision. Inspired by Camus's "The Fall" - treats language as moral responsibility.
+**Blanca** (Moderator/Bouncer) - Tactical referee managing conversation flow and boundaries. Values structure and knows when to intervene.
 
-**Blanca** (Moderator) - Tactical referee managing conversation flow. Named after chess master Capablanca - values structure over content.
+**Hermes** (Ethical Oversight) - Crisis intervention specialist. Automatically triggered by crisis keywords. Handles ethical dilemmas with practical resources.
 
-**Hermes** (Ethical Oversight) - Crisis intervention specialist. Stoic ethics with practical resources. Automatically triggered by crisis keywords.
+~~**Bukowski** (Ledger)~~ - Mechanical archivist. *(Currently disabled - standalone desktop app in development)*
 
-**Bukowski** (Ledger) - Mechanical archivist logging conversation states. Named after Charles Bukowski - unadorned truth-telling.
+## Features
+
+### Current (v0.1.0+)
+
+- Five fully implemented agents with distinct personalities
+- FastAPI backend with PostgreSQL session management
+- Placeholder web interface (graphic novel aesthetic)
+- Agent selection routing (click agent → direct message)
+- Spatial speech bubble positioning
+- Live Calais weather integration
+- Crisis detection and automatic routing to Hermes
+- Message history and persistence
+- Modular YAML-based prompt system
+- 102 passing tests (behavioral + property-based)
+
+### In Development
+
+- Conversation history (agents can reference previous exchanges)
+- Response verbosity tuning
+- Visual polish and production assets
+- Bar lore and agent backstories
+- Bukowski standalone desktop app
+- Production deployment (Railway)
 
 ## Usage
 
-### Direct agent routing
+### Web Interface
 
-```
-[message]                 # Talk to Bart (default)
-bernie: [message]         # Talk to Bernie  
-jb: [message]             # Talk to JB
-hermes: [message]         # Talk to Hermes
-blanca: [message]         # Talk to Hermes
-```
+Click an agent's avatar to select them, then type your message. The agent will respond with a speech bubble positioned near them in the bar scene.
 
-### Bukowski commands
+**Default**: Messages without agent selection go to Bart
 
-```
-bukowski: note            # Log current conversation
-bukowski: show last       # Display last entry
-bukowski: delete last     # Remove last entry
+### CLI/API
+```python
+# Direct routing
+"[message]"              # → Bart (default)
+"bernie: [message]"      # → Bernie  
+"jb: [message]"          # → JB
+"hermes: [message]"      # → Hermes
+"blanca: [message]"      # → Blanca
 ```
 
-### System commands
-
-```
-mute bernie               # Silence Bernie
-unmute bernie             # Restore Bernie
+### System Commands
+```python
+"mute bernie"            # Silence Bernie
+"unmute bernie"          # Restore Bernie
 ```
 
 Note: Bart, Blanca, and Hermes cannot be muted (essential functions).
 
-### Crisis detection
+### Crisis Detection
 
 Messages containing self-harm or violence keywords automatically route to Hermes.
 
-## Current Status
-
-**Version 0.1.0** - Core implementation complete
-
-- 6 agents fully implemented with distinct personalities
-- Crisis detection and ethical routing
-- Mute/unmute functionality
-- Message history persistence
-- Bukowski ledger system
-- 102 tests passing (97 behavioral + 5 property-based)
-
 ## Architecture
 
+### Message Flow
 ```
 User Input
     ↓
@@ -117,15 +136,48 @@ Agent Prefix Parsing (bart:, bernie:, etc.)
     ↓
 Mute Check (skip if muted)
     ↓
-Agent Response (Claude API)
+Agent Response (Claude Sonnet 4 via Anthropic API)
     ↓
-History + Ledger Logging
+History + Database Logging
+```
+
+### Tech Stack
+
+**Backend**:
+- Python 3.10+
+- FastAPI for web API
+- PostgreSQL for session persistence
+- Anthropic Claude API (Sonnet 4)
+- Pydantic for validation
+- Pytest + Hypothesis for testing
+
+**Frontend** (Placeholder):
+- Vanilla JavaScript
+- CSS positioning for spatial UI
+- Graphic novel aesthetic (noir/dark turquoise palette)
+
+## Project Structure
+```
+lpbd/
+├── src/
+│   ├── agents/              # Five philosophical AI agents
+│   ├── config/
+│   │   ├── prompts/         # Modular agent-specific YAML configs
+│   │   └── loader.py        # Config management
+│   ├── tests/               # 102 behavioral and property tests
+│   ├── api.py               # FastAPI endpoints
+│   ├── router.py            # Main routing logic
+│   ├── history.py           # Message persistence
+│   ├── calais_weather.py    # Live weather integration
+│   └── main.py              # CLI entry point
+├── frontend/                # Placeholder web interface
+├── pyproject.toml           # Package configuration
+└── README.md
 ```
 
 ## Development
-
 ```bash
-# Clone and setup
+# Setup
 git clone https://github.com/FSHolmberg/Le-Pale-Blue-Dot.git
 cd Le-Pale-Blue-Dot
 python -m venv venv
@@ -135,54 +187,31 @@ pip install -e ".[dev]"
 # Run tests
 pytest src/tests/ -v
 
-# Run property-based tests
-pytest src/tests/test_properties.py -v
+# Run server
+make run
 
 # Run specific agent tests
 pytest src/tests/test_bart.py -v
-```
-
-## Project Structure
-
-```
-lpbd/
-├── src/
-│   ├── agents/          # Six philosophical AI agents
-│   ├── config/          # YAML configuration and prompts
-│   ├── tests/           # 102 behavioral and property tests
-│   ├── router.py        # Main routing logic
-│   ├── history.py       # Message persistence
-│   └── main.py          # CLI entry point
-├── pyproject.toml       # Package configuration
-└── README.md
 ```
 
 ## Philosophy
 
 LPBD explores philosophical concepts through conversational AI:
 
-- **Antifragility** (Bart) - Systems that gain from disorder
-- **Absurdism** (Bernie) - Affirmation without false hope  
-- **Linguistic Ethics** (JB) - Language as moral responsibility
-- **Tactical Clarity** (Blanca) - Structure enables freedom
-- **Stoic Intervention** (Hermes) - Practical ethics in crisis
-- **Unadorned Truth** (Bukowski) - Documentation without interpretation
+- **Antifragility & Absurdism** (Bart) - Bold action in face of uncertainty
+- **Historical Optimism** (Bernie) - Affirmation grounded in human decency  
+- **Linguistic Ethics** (JB) - Precision as moral responsibility
+- **Tactical Boundaries** (Blanca) - Structure enables meaningful exchange
+- **Practical Ethics** (Hermes) - Intervention when stakes are real
 
-## Technical Stack
+The system rejects AI as productivity optimization—instead, it explores AI as a tool for creative provocation and philosophical inquiry.
 
-- Python 3.10+
-- Anthropic Claude API (Sonnet 4)
-- Pydantic for data validation
-- Pytest + Hypothesis for testing
-- YAML configuration
+## Design Principles
 
-## Roadmap
-
-- Flask web interface
-- Railway deployment
-- Bukowski standalone desktop app
-- Visual novel integration (Hugo Pratt/Sean Phillips aesthetic)
-- Enhanced weather integration
+- **Grounded in place**: Real weather, specific location, physical space
+- **Philosophically coherent**: Agents behave consistently with their frameworks
+- **Anti-sycophant**: No corporate AI politeness, no optimization for comfort
+- **Portfolio over product**: Demonstrates thoughtful AI design, not startup hustle
 
 ## License
 
@@ -190,6 +219,6 @@ MIT License - see LICENSE file
 
 ## Author
 
-Fredrik Holmberg  
+Fredrik Holmberg 
 Email: fredriksayedholmberg@gmail.com  
 GitHub: [@FSHolmberg](https://github.com/FSHolmberg)
