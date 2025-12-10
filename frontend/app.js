@@ -9,6 +9,9 @@ let messageCount = 0;
 let selectedAgent = null;
 let isProcessing = false;
 let isInside = false;
+let onboardingInProgress = false;
+let isApproved = false;
+let anonymousId = generateAnonymousId(); // Generate on page load
 
 // === DOM Elements ===
 const elements = {
@@ -25,6 +28,16 @@ const elements = {
 };
 
 // === Utility Functions ===
+
+function generateAnonymousId() {
+    // Check localStorage first
+    let id = localStorage.getItem('lpbd_anonymous_id');
+    if (!id) {
+        id = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('lpbd_anonymous_id', id);
+    }
+    return id;
+}
 
 function getAuthHeader() {
     const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
@@ -51,45 +64,6 @@ function updateCharCount() {
     } else {
         elements.charCount.className = 'char-count';
     }
-}
-
-function enterBar() {
-    isInside = true;
-    
-    // Switch background from exterior to interior
-    elements.comicPanel.classList.remove('exterior');
-    elements.comicPanel.classList.add('interior');
-    
-    // Show interior elements
-    elements.speechBubblesContainer.style.display = 'flex';
-    elements.userInput.style.display = 'block';
-    elements.charCount.style.display = 'inline';
-    document.getElementById('input-panel').style.display = 'block';
-    
-    // Show all agent portraits
-    elements.agentPortraits.forEach(portrait => {
-        portrait.style.display = 'flex';
-    });
-}
-
-function addSpeechBubble(content, agent = null, isUser = false) {
-    elements.speechBubblesContainer.innerHTML = '';
-    const bubble = document.createElement('div');
-    bubble.className = 'speech-bubble';
-    
-    if (isUser) {
-        bubble.className += ' user-bubble';
-        bubble.innerHTML = `<p>${escapeHtml(content)}</p>`;
-    } else {
-        bubble.className += ' agent-bubble';
-        bubble.setAttribute('data-speaker', agent);  // Use data-speaker, not data-agent
-        bubble.innerHTML = `
-            <span class="agent-name-tag">${agent.toUpperCase()}</span>
-            <p>${escapeHtml(content)}</p>
-        `;
-    }
-    
-    elements.speechBubblesContainer.appendChild(bubble);
 }
 
 function escapeHtml(text) {
@@ -127,6 +101,223 @@ function setUIState(state) {
     }
 }
 
+// === Onboarding Functions ===
+
+async function startOnboarding() {
+    onboardingInProgress = true;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/onboard`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+                anonymous_id: anonymousId,
+                message: null
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        displayOnboardingMessage('blanca', data.message);
+        
+        if (data.continue_onboarding) {
+            showExteriorChatInput();
+        } else if (data.approved) {
+            isApproved = true;
+            setTimeout(() => {
+                showStatus('Click door to enter', 'success');
+            }, 2000);
+        } else {
+            displayRejectionMessage();
+        }
+    } catch (error) {
+        console.error('Onboarding failed:', error);
+        showStatus('Connection failed', 'error');
+    }
+}
+
+async function sendOnboardingMessage(userMessage) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/onboard`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+                anonymous_id: anonymousId,
+                message: userMessage
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        displayOnboardingMessage('blanca', data.message);
+        
+        if (data.approved) {
+            isApproved = true;
+            hideExteriorChatInput();
+        } else if (!data.continue_onboarding) {
+            displayRejectionMessage();
+            hideExteriorChatInput();
+        }
+    } catch (error) {
+        console.error('Onboarding message failed:', error);
+        showStatus('Message failed', 'error');
+    }
+}
+
+function displayOnboardingMessage(speaker, message) {
+    // Clear old bubbles FIRST
+    const oldBubbles = elements.comicPanel.querySelectorAll('.onboarding-bubble');
+    oldBubbles.forEach(b => b.remove());
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'speech-bubble onboarding-bubble';
+    bubble.textContent = message;
+    bubble.style.position = 'absolute';
+    
+    // Position bubble above Blanca (she's on the right side)
+    if (speaker === 'blanca') {
+        bubble.style.bottom = '55%';  // Above her head
+        bubble.style.right = '15%';    // Right side where she stands
+        bubble.style.left = 'auto';
+    } else {
+        // User bubble - center bottom
+        bubble.style.bottom = '20%';
+        bubble.style.left = '50%';
+        bubble.style.transform = 'translateX(-50%)';
+    }
+    
+    bubble.style.maxWidth = '400px';
+    bubble.style.padding = '15px';
+    bubble.style.background = 'rgba(0,0,0,0.8)';
+    bubble.style.color = '#00ffcc';
+    bubble.style.borderRadius = '8px';
+    
+    elements.comicPanel.appendChild(bubble);
+}
+
+function showExteriorChatInput() {
+    const inputContainer = document.createElement('div');
+    inputContainer.id = 'exterior-input';
+    inputContainer.style.position = 'absolute';
+    inputContainer.style.bottom = '5%';
+    inputContainer.style.left = '50%';
+    inputContainer.style.transform = 'translateX(-50%)';
+    inputContainer.style.display = 'flex';
+    inputContainer.style.gap = '10px';
+    
+    inputContainer.innerHTML = `
+        <input type="text" id="onboarding-input" placeholder="Type your response..." 
+               style="width: 300px; padding: 10px; font-size: 16px;">
+        <button id="onboarding-send" style="padding: 10px 20px; cursor: pointer;">Send</button>
+    `;
+    
+    elements.comicPanel.appendChild(inputContainer);
+    
+    // Add event listeners
+    document.getElementById('onboarding-send').addEventListener('click', handleOnboardingSubmit);
+    document.getElementById('onboarding-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleOnboardingSubmit();
+        }
+    });
+    
+    document.getElementById('onboarding-input').focus();
+}
+
+function hideExteriorChatInput() {
+    const input = document.getElementById('exterior-input');
+    if (input) input.remove();
+}
+
+async function handleOnboardingSubmit() {
+    const input = document.getElementById('onboarding-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    displayOnboardingMessage('user', message);
+    input.value = '';
+    
+    await sendOnboardingMessage(message);
+}
+
+function displayRejectionMessage() {
+    const msg = document.createElement('div');
+    msg.textContent = "You cannot enter tonight.";
+    msg.style.position = 'absolute';
+    msg.style.top = '50%';
+    msg.style.left = '50%';
+    msg.style.transform = 'translate(-50%, -50%)';
+    msg.style.color = '#ff0000';
+    msg.style.fontSize = '24px';
+    msg.style.fontWeight = 'bold';
+    
+    elements.comicPanel.appendChild(msg);
+}
+
+// === Interior Functions ===
+
+function enterBar() {
+    isInside = true;
+    
+    // Clear onboarding UI
+    hideExteriorChatInput();
+    const bubbles = elements.comicPanel.querySelectorAll('.onboarding-bubble');
+    bubbles.forEach(b => b.remove());
+    
+    // Switch background
+    elements.comicPanel.classList.remove('exterior');
+    elements.comicPanel.classList.add('interior');
+    
+    // Show interior elements
+    elements.speechBubblesContainer.style.display = 'flex';
+    elements.userInput.style.display = 'block';
+    elements.charCount.style.display = 'inline';
+    elements.inputPanel.style.display = 'block';
+    
+    elements.agentPortraits.forEach(portrait => {
+        portrait.style.display = 'flex';
+    });
+    
+    // Start actual session
+    startSession();
+}
+
+function addSpeechBubble(content, agent = null, isUser = false) {
+    elements.speechBubblesContainer.innerHTML = '';
+    const bubble = document.createElement('div');
+    bubble.className = 'speech-bubble';
+    
+    if (isUser) {
+        bubble.className += ' user-bubble';
+        bubble.innerHTML = `<p>${escapeHtml(content)}</p>`;
+    } else {
+        bubble.className += ' agent-bubble';
+        bubble.setAttribute('data-speaker', agent);
+        bubble.innerHTML = `
+            <span class="agent-name-tag">${agent.toUpperCase()}</span>
+            <p>${escapeHtml(content)}</p>
+        `;
+    }
+    
+    elements.speechBubblesContainer.appendChild(bubble);
+}
+
 // === API Functions ===
 
 async function startSession() {
@@ -146,15 +337,9 @@ async function startSession() {
         }
         
         const data = await response.json();
-        
-        // Store session state
         currentSessionId = data.session_id;
-        // Weather is fetched but not displayed - will be shown through window in final art
         
-        // Transition to interior
-        enterBar();
         clearConversation();
-        
         setUIState('active');
         showStatus('Connected', 'success');
         
@@ -182,12 +367,10 @@ async function sendMessage() {
         isProcessing = true;
         setUIState('processing');
         
-        // Add user message to UI immediately
         addSpeechBubble(messageText, null, true);
         elements.userInput.value = '';
         updateCharCount();
         
-        // Send to API
         const response = await fetch(`${API_BASE_URL}/message`, {
             method: 'POST',
             headers: {
@@ -208,13 +391,9 @@ async function sendMessage() {
         
         const data = await response.json();
         
-        // Add agent response
         addSpeechBubble(data.message, data.agent, false);
-        
-        // Update agent portraits (muted state)
         updateAgentStates(data.agents_available, data.agents_muted);
         
-        // Check session status
         if (data.session_status === 'ended' || data.message_count >= 30) {
             setUIState('ended');
             showStatus('Session ended. Start a new session to continue.', 'warning');
@@ -222,7 +401,6 @@ async function sendMessage() {
             setUIState('active');
         }
         
-        // Warning for last call
         if (data.message_count === 25) {
             showStatus('Last call! Five messages remaining.', 'warning');
         }
@@ -250,12 +428,16 @@ function updateAgentStates(available, muted) {
 
 // === Event Listeners ===
 
-const doorClickable = document.getElementById('door-clickable');
-doorClickable.addEventListener('click', startSession);
+elements.doorClickable.addEventListener('click', async () => {
+    if (!onboardingInProgress && !isApproved) {
+        await startOnboarding();
+    } else if (isApproved) {
+        enterBar();
+    }
+});
 
 elements.userInput.addEventListener('input', updateCharCount);
 
-// Send on Enter (but allow Shift+Enter for newlines)
 elements.userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isProcessing) {
         e.preventDefault();
@@ -263,22 +445,18 @@ elements.userInput.addEventListener('keydown', (e) => {
     }
 });
 
-// Agent selection
 elements.agentPortraits.forEach(portrait => {
     portrait.addEventListener('click', () => {
         if (portrait.classList.contains('muted')) {
-            return; // Can't select muted agents
+            return;
         }
         
-        // Toggle selection
         const agent = portrait.dataset.agent;
         
         if (selectedAgent === agent) {
-            // Deselect
             selectedAgent = null;
             portrait.classList.remove('selected');
         } else {
-            // Select new agent
             elements.agentPortraits.forEach(p => p.classList.remove('selected'));
             portrait.classList.add('selected');
             selectedAgent = agent;
@@ -290,7 +468,5 @@ elements.agentPortraits.forEach(portrait => {
 // === Initialization ===
 
 console.log('Le Pale Blue Dot - Frontend Initialized');
-console.log('API Base URL:', API_BASE_URL);
-
-// Set initial UI state
+console.log('Anonymous ID:', anonymousId);
 setUIState('initial');

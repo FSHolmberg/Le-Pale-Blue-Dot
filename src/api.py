@@ -5,17 +5,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
 from typing import Optional, List
 from datetime import datetime, timezone
+from src.router import Router
+from src.calais_weather import get_calais_environment
+from src.database.models import get_db, User, Session, Message as DBMessage
+from src.config.loader import Config
+from src.schemas.message import Message
+
 import uuid
 import time
 import secrets
 import os
+import anthropic
 
 security = HTTPBasic()
-
-from src.router import Router
-from src.schemas.message import Message
-from src.calais_weather import get_calais_environment
-from src.database.models import get_db, User, Session, Message as DBMessage
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 app = FastAPI(title="Le Pale Blue Dot API")
 app.add_middleware(
@@ -68,6 +71,16 @@ class MessageResponse(BaseModel):
     session_status: str
     message_count: int
     message_limit: int
+
+class OnboardRequest(BaseModel):
+    anonymous_id: str
+    message: Optional[str] = None  # None for initial greeting, then user responses
+
+class OnboardResponse(BaseModel):
+    message: str
+    approved: bool
+    continue_onboarding: bool  # True if more questions needed
+
 
 # --- Endpoints ---
 
@@ -144,30 +157,40 @@ async def send_message(
     session.message_count += 1
     db.commit()
     
-    # Get conversation history for Router
-    messages = db.query(DBMessage).filter(DBMessage.session_id == session.id).all()
-    
-    # Initialize Router (TODO: store Router state in session or reconstruct?)
+    # Initialize Router
     router = Router()
     
     # Build Message for Router
     msg = Message(
-        user_id=request.session_id,
+        user_id=session.user_id,
         text=request.content,
-        timestamp=time.time()
+        session_id=request.session_id
     )
 
-    # Check if user manually selected an agent
-    if request.selected_agent:
+    # ROUTING LOGIC (with handoff support)
+    # Priority: 1. Pending handoff, 2. Manual selection, 3. Auto-routing
+    if session.pending_handoff and not request.selected_agent:
+        # Handoff takes priority
+        agent_name = session.pending_handoff
+        agent_response = router.execute_agent(session.pending_handoff, msg, db_session=db)
+        # Clear the handoff
+        session.pending_handoff = None
+        db.commit()
+    elif request.selected_agent:
+        # Manual agent selection
         agent_name = request.selected_agent
-        # Execute the selected agent directly
-        agent_response = router.execute_agent(request.selected_agent, msg)
+        agent_response = router.execute_agent(request.selected_agent, msg, db_session=db)
     else:
-        # Use router's automatic routing logic
-        result = router.handle(msg)
-        print(f"DEBUG: router.handle returned: {result}, type: {type(result)}")
-        agent_name, agent_response = router.handle(msg)
+        # Auto-routing
+        agent_name, agent_response = router.handle(msg, db_session=db)
     
+    # Detect handoff in response and store for next message
+    handoff_target = router._detect_handoff(agent_response)
+    if handoff_target:
+        session.pending_handoff = handoff_target
+        db.commit()
+    
+    # Add warning if needed
     if warning:
         agent_response = f"{warning}\n\n{agent_response}"
     
@@ -191,4 +214,171 @@ async def send_message(
         session_status=session.status,
         message_count=session.message_count,
         message_limit=30
+    )
+
+@app.post("/api/onboard")
+async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
+    """
+    Handle onboarding conversation with Blanca at the exterior.
+    Multi-turn conversation until user is approved or rejected.
+    """
+    
+    # Get or create user
+    user = db.query(User).filter_by(anonymous_id=request.anonymous_id).first()
+    if not user:
+        user = User(anonymous_id=request.anonymous_id)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # Check if user has completed sessions (recurring vs new)
+    completed_sessions = db.query(Session).filter_by(
+        user_id=user.id,
+        status="ended"
+    ).count()
+    
+    is_new_user = completed_sessions == 0
+    
+    # Get or create onboarding session
+    # Use a special session type or flag to track onboarding state
+    onboarding_session = db.query(Session).filter_by(
+        user_id=user.id,
+        status="onboarding"
+    ).first()
+    
+    if not onboarding_session:
+        onboarding_session = Session(
+            user_id=user.id,
+            status="onboarding"
+        )
+        db.add(onboarding_session)
+        db.commit()
+        db.refresh(onboarding_session)
+    
+    # Load onboarding context
+    config = Config()
+    onboarding_config = config.get_onboarding_context(is_new_user)
+    
+    # Get conversation history from this onboarding session
+    previous_messages = db.query(DBMessage).filter_by(
+        session_id=onboarding_session.id
+    ).order_by(DBMessage.timestamp).all()
+    
+    # Build conversation history for Blanca
+    conversation_history = []
+    for msg in previous_messages:
+        role = "user" if msg.is_user_message else "assistant"
+        conversation_history.append({
+            "role": role,
+            "content": msg.content
+        })
+    
+    # If this is initial request (no message), get Blanca's opening
+    if request.message is None:
+        blanca_prompt = config.get_prompt("blanca")
+        blanca_prompt += f"\n\n{onboarding_config}"
+        
+        
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=150,
+            system=blanca_prompt,
+            messages=[{
+                "role": "user",
+                "content": "A new person just approached the door."
+            }]
+        )
+        
+        blanca_message = response.content[0].text
+        
+        # Save Blanca's message
+        msg = DBMessage(
+            session_id=onboarding_session.id,
+            agent="blanca",
+            content=blanca_message,
+            is_user_message=0
+        )
+        db.add(msg)
+        db.commit()
+        
+        return OnboardResponse(
+            message=blanca_message,
+            approved=False,
+            continue_onboarding=True
+        )
+    
+    # User has responded, save their message
+    user_msg = DBMessage(
+        session_id=onboarding_session.id,
+        agent="user",
+        content=request.message,
+        is_user_message=1
+    )
+    db.add(user_msg)
+    db.commit()
+    
+    # Add user message to conversation history
+    conversation_history.append({
+        "role": "user",
+        "content": request.message
+    })
+    
+    # Get Blanca's response with full context
+    blanca_prompt = config.get_prompt("blanca")
+    blanca_prompt += f"\n\n{onboarding_config}"
+    
+   
+    
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=150,
+        system=blanca_prompt,
+        messages=conversation_history
+    )
+    
+    blanca_message = response.content[0].text
+    
+    # Save Blanca's response
+    msg = DBMessage(
+        session_id=onboarding_session.id,
+        agent="blanca",
+        content=blanca_message,
+        is_user_message=0
+    )
+    db.add(msg)
+    db.commit()
+    
+    # Check if Blanca approved/rejected
+    # Look for approval/rejection signals in her response
+    approved = False
+    continue_onboarding = True
+    
+    blanca_lower = blanca_message.lower()
+    
+    # Approval signals
+    if any(phrase in blanca_lower for phrase in [
+        "welcome in", "alright, welcome", "go on in", "door's open", 
+        "go have a drink", "head on in"
+    ]):
+        approved = True
+        continue_onboarding = False
+        # Mark onboarding session as complete
+        onboarding_session.status = "completed"
+        db.commit()
+    
+    # Rejection signals
+    elif any(phrase in blanca_lower for phrase in [
+        "sorry, not tonight", "not today", "can't let you in", 
+        "come back when", "not the right place"
+    ]):
+        approved = False
+        continue_onboarding = False
+        # Mark onboarding session as rejected
+        onboarding_session.status = "rejected"
+        db.commit()
+    
+    return OnboardResponse(
+        message=blanca_message,
+        approved=approved,
+        continue_onboarding=continue_onboarding
     )

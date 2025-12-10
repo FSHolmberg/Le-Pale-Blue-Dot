@@ -23,10 +23,11 @@ class Session(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     started_at = Column(DateTime, default=datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
-    status = Column(String, default="active")  # active, warning_15min, kicked, ended
+    status = Column(String, default="active")  # active, onboarding, completed, rejected, warning_15min, kicked, ended
     crisis_flag_date = Column(String, nullable=True)  # ISO date string
     weather = Column(String, nullable=True)
     message_count = Column(Integer, default=0)
+    pending_handoff = Column(String, nullable=True)
     
     user = relationship("User", back_populates="sessions")
     messages = relationship("Message", back_populates="session")
@@ -42,6 +43,21 @@ class Message(Base):
     is_user_message = Column(Integer, default=0)  # 0=agent, 1=user (SQLite compat)
     
     session = relationship("Session", back_populates="messages")
+
+
+class MessageArchive(Base):
+    __tablename__ = "message_archive"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("sessions.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    agent = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    is_user_message = Column(Integer, default=0)
+    message_position = Column(String, nullable=False)  # 'opening' or 'closing'
+    position_index = Column(Integer, nullable=False)  # 1,2,3 for opening; 1-10 for closing
+    archived_at = Column(DateTime, default=datetime.utcnow)
 
 # Database connection
 DATABASE_URL = "postgresql://localhost/lpbd_dev"
