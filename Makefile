@@ -21,3 +21,6 @@ commit:
 
 reload:
 	uvicorn src.api:app --reload
+
+sesh:
+	@psql lpbd_dev -P pager=off -c "COPY (SELECT CASE WHEN is_user_message = 1 THEN '[USER] ' ELSE '[' || UPPER(agent) || '] ' END || REPLACE(content, E'\\n', ' ') FROM messages WHERE session_id = (SELECT id FROM sessions ORDER BY started_at DESC LIMIT 1) ORDER BY timestamp) TO STDOUT;"

@@ -1,25 +1,25 @@
 {
-  "date": "2025-12-10",
+  "date": "2025-12-11",
   "high_tides": [
     {
-      "time": "03:12",
-      "height": 2.9
+      "time": "04:01",
+      "height": 2.5
     },
     {
-      "time": "15:40",
-      "height": 2.6
+      "time": "16:34",
+      "height": 2.2
     }
   ],
   "low_tides": [
     {
-      "time": "10:19",
-      "height": -2.5
+      "time": "11:04",
+      "height": -2.2
     },
     {
-      "time": "22:41",
-      "height": -2.1
+      "time": "23:26",
+      "height": -1.8
     }
   ],
-  "fetched_at": "2025-12-10T14:03:08.442844",
-  "next_fetch": "2025-12-11"
+  "fetched_at": "2025-12-11T09:32:33.597894",
+  "next_fetch": "2025-12-12"
 }

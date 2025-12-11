@@ -28,6 +28,7 @@ class Session(Base):
     weather = Column(String, nullable=True)
     message_count = Column(Integer, default=0)
     pending_handoff = Column(String, nullable=True)
+    current_agent = Column(String, default="bart")
     
     user = relationship("User", back_populates="sessions")
     messages = relationship("Message", back_populates="session")

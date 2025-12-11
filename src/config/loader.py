@@ -13,12 +13,15 @@ class Config:
         """Load all agent prompts from individual YAML files."""
         prompts = {}
         
-        # Load each agent's prompt file
         for prompt_file in self.prompts_dir.glob("*.yaml"):
-            agent_name = prompt_file.stem  # e.g., "bart" from "bart.yaml"
+            agent_name = prompt_file.stem
             with prompt_file.open("r", encoding="utf-8") as f:
                 agent_config = yaml.safe_load(f)
-                prompts[agent_name] = agent_config
+                # YAML has agent_name as top-level key, extract it
+                if agent_name in agent_config:
+                    prompts[agent_name] = agent_config[agent_name]  # FIX: Extract nested dict
+                else:
+                    prompts[agent_name] = agent_config
         
         return prompts
 
@@ -37,6 +40,9 @@ class Config:
         section = self.data.get(agent_name, {})
         base_prompt = section.get("system_prompt", "")
         
+        print(f"DEBUG get_prompt: agent={agent_name}, base_prompt length={len(base_prompt)}")
+        print(f"DEBUG get_prompt: first 200 chars={base_prompt[:200]}")
+        
         # Inject bar context only for Blanca (she always onboards, triggers cache)
         if agent_name == "blanca":
             bar_context = self._load_bar_context()
@@ -45,13 +51,13 @@ class Config:
         
         # Inject weather context for ALL agents (they all see the window)
         environment = get_environment_for_agent()
-        base_prompt += f"\n\nCURRENT ENVIRONMENT: {environment}\nVisible through the window. Mention only if genuinely relevant—don't force weather into every response."
+        base_prompt = f"CURRENT ENVIRONMENT: {environment}\nVisible through the window. Mention only if genuinely relevant—don't force weather into every response.\n\n{base_prompt}"
         
         # Inject tide context for agents who know tides
         if agent_name in ["bart", "bernie", "jb"]:
             tide_context = get_tide_context_for_agent()
-            base_prompt += f"\n\n{tide_context}"
-        
+            base_prompt = f"{tide_context}\n\n{base_prompt}"
+    
         return base_prompt
     
     def get_onboarding_context(self, is_new_user: bool) -> str:
@@ -68,3 +74,9 @@ class Config:
             return context_data.get("new_user_onboarding", "")
         else:
             return context_data.get("recurring_user_onboarding", "")
+        
+    def get_router_descriptions(self):
+        """Load router descriptions for agent routing"""
+        router_path = self.prompts_dir / "router_descriptions.yaml"
+        with open(router_path, 'r') as f:
+            return yaml.safe_load(f)

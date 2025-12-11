@@ -181,14 +181,23 @@ async def send_message(
         agent_name = request.selected_agent
         agent_response = router.execute_agent(request.selected_agent, msg, db_session=db)
     else:
-        # Auto-routing
+        # Auto-routing - pass current agent for stickiness
+        router.last_agent = session.current_agent  # Tell router who user is talking to
         agent_name, agent_response = router.handle(msg, db_session=db)
     
-    # Detect handoff in response and store for next message
-    handoff_target = router._detect_handoff(agent_response)
-    if handoff_target:
-        session.pending_handoff = handoff_target
-        db.commit()
+    # Update current agent in session (after all routing paths)
+    session.current_agent = agent_name
+    db.commit()
+    
+    # Check if agent said "Let me get [Agent]" for handoff
+    if "let me get" in agent_response.lower():
+        import re
+        match = re.search(r'let me get (\w+)', agent_response.lower())
+        if match:
+            target_agent = match.group(1)
+            if target_agent in ['bernie', 'jb', 'hermes', 'blanca']:
+                session.pending_handoff = target_agent
+                db.commit()
     
     # Add warning if needed
     if warning:

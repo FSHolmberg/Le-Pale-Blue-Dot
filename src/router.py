@@ -24,6 +24,7 @@ class Router:
         self.jb = JB(prompt=self.config.get_prompt("jb"))
         self.bernie = Bernie(prompt=self.config.get_prompt("bernie"))
         self.hermes = Hermes(prompt=self.config.get_prompt("hermes"))
+        self.last_agent = "bart"
 
         self.history_persistence = HistoryPersistence()
         # Load existing history if available, otherwise use provided or create new
@@ -72,68 +73,47 @@ class Router:
             return False
             
         return any(pattern in clean for pattern in crisis_patterns)
+        
+    def _should_handoff(self, user_message: str, agent_name: str, agent_response: str) -> str | None:
+        """
+        Use LLM to determine if agent should hand off to another agent.
+        Returns: target agent name or None
+        """
+        from anthropic import Anthropic
+        import os
+        
+        client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        
+        prompt = f"""You are analyzing a conversation in a bar. Current agent is {agent_name.upper()}.
 
-    def _detect_handoff(self, agent_response: str) -> str | None:
-        """
-        Detect if agent is handing off to another agent.
-        Returns: agent_name to hand off to, or None
-        """
-        response_lower = agent_response.lower()
+        User said: "{user_message}"
+        {agent_name.upper()} responded: "{agent_response}"
+
+        Should {agent_name.upper()} hand off to another agent?
+
+        Agents:
+        - BERNIE: Emotional support, philosophy, existential questions
+        - JB: Practical advice, chess, sailing, technical matters  
+        - HERMES: Crisis intervention, suicide prevention
+        - BLANCA: Rule enforcement, bar management
+        - BART: General bartender, stories, light conversation (current)
+
+        Respond with ONLY the agent name (bernie/jb/hermes/blanca) if handoff needed, or "none" if current agent should continue.
+
+        If user explicitly asks for another agent OR if the agent's response suggests they're calling/summoning another agent, respond with that agent's name."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=10,
+            messages=[{"role": "user", "content": prompt}]
+        )
         
-        # More flexible handoff patterns
-        handoff_patterns = {
-            "bernie": [
-                "let me get bernie",
-                "i'll get bernie",
-                "bernie should",
-                "talk to bernie",
-                "bernie can help",
-                "bernie has a",
-                "bernie?",  # When calling Bernie
-                "bernie's better",
-                "asking for you" # Stage direction pattern
-            ],
-            "jb": [
-                "let me get jb",
-                "i'll get jb",
-                "jb should",
-                "talk to jb",
-                "jb can help",
-                "jb?",
-                "jb's better"
-            ],
-            "hermes": [
-                "let me get hermes",
-                "i'll get hermes",
-                "hermes should",
-                "talk to hermes",
-                "hermes can help",
-                "hermes?"
-            ],
-            "blanca": [
-                "let me get blanca",
-                "i'll get blanca",
-                "blanca should",
-                "talk to blanca",
-                "blanca?"
-            ]
-        }
+        result = response.content[0].text.strip().lower()
         
-        # Also detect stage directions (fallback)
-        # Pattern: **AgentName:** or **AgentName**
-        import re
-        stage_direction = re.search(r'\*\*([a-z]+)\*\*', response_lower)
-        if stage_direction:
-            detected_agent = stage_direction.group(1)
-            if detected_agent in ["bernie", "jb", "hermes", "blanca"]:
-                return detected_agent
-        
-        for target_agent, patterns in handoff_patterns.items():
-            if any(pattern in response_lower for pattern in patterns):
-                return target_agent
-        
+        if result in ["bernie", "jb", "hermes", "blanca"]:
+            return result
         return None
-        
+    
     def _strip_stage_directions(self, text: str) -> str:
         """Remove stage directions like **Bernie:** from responses"""
         import re
@@ -190,7 +170,7 @@ class Router:
         clean = text.strip().lower()
 
         try:
-            # Pre-router scan for violations (CAPS, empty, etc.)
+            # Pre-router scan for violations
             has_violation, warning = self._pre_route_scan(text)
             if has_violation:
                 self.logger.warning("Rule violation", extra={
@@ -200,7 +180,7 @@ class Router:
                 })
                 return "blanca", warning
             
-            # Check for mute/unmute commands
+            # Mute/unmute commands
             if clean.startswith("mute "):
                 agent_to_mute = clean.split("mute ", 1)[1].strip()
                 reply = self.mute_agent(agent_to_mute)
@@ -221,118 +201,74 @@ class Router:
                 })
                 return "system", reply
             
-            # Check for crisis (route to Hermes - can't be muted)
+            # PRIORITY 1: Crisis detection (always Hermes)
             if self._detect_crisis(text):
                 agent_name = "hermes"
-                
-                if self.memory_mgr and hasattr(message, 'session_id'):
-                    hermes_prompt = self.config.get_prompt("hermes")
-                    enhanced_prompt = self._inject_history_context(
-                        hermes_prompt, 
-                        user_id, 
-                        message.session_id
-                    )
-                    hermes_with_history = Hermes(prompt=enhanced_prompt)
-                    reply = hermes_with_history.respond(text)
-                else:
-                    reply = self.hermes.respond(text)
-
-            # Explicit agent routing (with mute checks where applicable)
+            
+            # PRIORITY 2: Explicit agent selection (user types "bernie:", "jb:", etc.)
             elif clean.startswith("jb"):
-                user_message = text[2:].strip(":, ") or text
-                
-                if "jb" in self.muted_agents:
-                    agent_name = "bart"
-                    reply = self.bart.respond(user_message)
-                else:
-                    agent_name = "jb"
-                    
-                    if self.memory_mgr and hasattr(message, 'session_id'):
-                        jb_prompt = self.config.get_prompt("jb")
-                        enhanced_prompt = self._inject_history_context(
-                            jb_prompt, 
-                            user_id, 
-                            message.session_id
-                        )
-                        jb_with_history = JB(prompt=enhanced_prompt)
-                        reply = jb_with_history.respond(user_message)
-                    else:
-                        reply = self.jb.respond(user_message)
-
+                text = text[2:].strip(":, ") or text
+                agent_name = "jb" if "jb" not in self.muted_agents else "bart"
+            
             elif clean.startswith("bernie"):
-                user_message = text[6:].strip(":, ") or text
-                
-                if "bernie" in self.muted_agents:
-                    agent_name = "bart"
-                    reply = self.bart.respond(user_message)
-                else:
-                    agent_name = "bernie"
-                    
-                    if self.memory_mgr and hasattr(message, 'session_id'):
-                        bernie_prompt = self.config.get_prompt("bernie")
-                        enhanced_prompt = self._inject_history_context(
-                            bernie_prompt, 
-                            user_id, 
-                            message.session_id
-                        )
-                        bernie_with_history = Bernie(prompt=enhanced_prompt)
-                        reply = bernie_with_history.respond(user_message)
-                    else:
-                        reply = self.bernie.respond(user_message)
-
+                text = text[6:].strip(":, ") or text
+                agent_name = "bernie" if "bernie" not in self.muted_agents else "bart"
+            
             elif clean.startswith("blanca"):
-                user_message = text[6:].strip(":, ") or text
+                text = text[6:].strip(":, ") or text
                 agent_name = "blanca"
-                
-                if self.memory_mgr and hasattr(message, 'session_id'):
-                    blanca_prompt = self.config.get_prompt("blanca")
-                    enhanced_prompt = self._inject_history_context(
-                        blanca_prompt, 
-                        user_id, 
-                        message.session_id
-                    )
-                    blanca_with_history = Blanca(prompt=enhanced_prompt)
-                    reply = blanca_with_history.respond(user_message)
-                else:
-                    reply = self.blanca.respond(user_message)
-
+            
             elif clean.startswith("hermes"):
-                user_message = text[6:].strip(":, ") or text
+                text = text[6:].strip(":, ") or text
                 agent_name = "hermes"
-                
-                if self.memory_mgr and hasattr(message, 'session_id'):
-                    hermes_prompt = self.config.get_prompt("hermes")
-                    enhanced_prompt = self._inject_history_context(
-                        hermes_prompt, 
-                        user_id, 
-                        message.session_id
-                    )
-                    hermes_with_history = Hermes(prompt=enhanced_prompt)
-                    reply = hermes_with_history.respond(user_message)
-                else:
-                    reply = self.hermes.respond(user_message)
-
-            # Default to Bart
+            
+            # PRIORITY 3: Router LLM decides
             else:
-                agent_name = "bart"
-
-                if self.memory_mgr and hasattr(message, 'session_id'):
-                    bart_prompt = self.config.get_prompt("bart")
-                    enhanced_prompt = self._inject_history_context(
-                        bart_prompt, 
-                        user_id, 
-                        message.session_id
-                    )
-                    bart_with_history = Bart(prompt=enhanced_prompt)
-                    reply = bart_with_history.respond(text)
+                agent_name = self._simple_route(text, current_agent=self.last_agent)
+                # Check mute status
+                if agent_name in self.muted_agents and agent_name not in ["hermes", "blanca"]:
+                    agent_name = "bart"
+            
+            # Get agent response with history
+            if self.memory_mgr and hasattr(message, 'session_id'):
+                agent_prompt = self.config.get_prompt(agent_name)
+                enhanced_prompt = self._inject_history_context(
+                    agent_prompt, 
+                    user_id, 
+                    message.session_id
+                )
+                
+                if agent_name == "bart":
+                    agent = Bart(prompt=enhanced_prompt)
+                elif agent_name == "bernie":
+                    agent = Bernie(prompt=enhanced_prompt)
+                elif agent_name == "jb":
+                    agent = JB(prompt=enhanced_prompt)
+                elif agent_name == "blanca":
+                    agent = Blanca(prompt=enhanced_prompt)
+                elif agent_name == "hermes":
+                    agent = Hermes(prompt=enhanced_prompt)
+                else:
+                    agent = Bart(prompt=enhanced_prompt)
+                
+                reply = agent.respond(text)
+            else:
+                # Fallback without history
+                if agent_name == "bart":
+                    reply = self.bart.respond(text)
+                elif agent_name == "bernie":
+                    reply = self.bernie.respond(text)
+                elif agent_name == "jb":
+                    reply = self.jb.respond(text)
+                elif agent_name == "blanca":
+                    reply = self.blanca.respond(text)
+                elif agent_name == "hermes":
+                    reply = self.hermes.respond(text)
                 else:
                     reply = self.bart.respond(text)
 
-            # Strip stage directions and detect handoff
             reply = self._strip_stage_directions(reply)
-            handoff_target = self._detect_handoff(reply)
 
-            # Log and persist turn
             self.history.add_turn(
                 user_id=message.user_id,
                 agent=agent_name,
@@ -341,7 +277,6 @@ class Router:
                 ts=time()
             )
             
-            # Autosave after each turn
             self.save_state()
             self.logger.info("Turn completed", extra={
                 "user_id": message.user_id,
@@ -349,6 +284,8 @@ class Router:
                 "user_text": text,
                 "reply_text": reply
             })
+            
+            self.last_agent = agent_name
             return agent_name, reply
 
         except Exception:
@@ -356,9 +293,10 @@ class Router:
                 "user_id": message.user_id,
                 "text": getattr(message, 'text', None)
             })
-        return self._fallback_to_blanca(message, "exception_in_handle")
+            return self._fallback_to_blanca(message, "exception_in_handle")
         
     def execute_agent(self, agent_name: str, message: Message, db_session=None) -> str:
+    
         """Execute a specific agent directly, bypassing routing logic."""
 
         # Set memory manager if DB provided
@@ -457,3 +395,45 @@ class Router:
         })
         
         return reply
+    
+    def _simple_route(self, user_message: str, current_agent: str = "bart") -> str:
+        """Fast routing with agent stickiness"""
+        from anthropic import Anthropic
+        import os
+        
+        if self._detect_crisis(user_message):
+            return "hermes"
+        
+        # Use existing config loader
+        router_config = self.config.get_router_descriptions()  
+        
+        agent_guide = "\n".join([
+            f"{name}: {info['handles']}"
+            for name, info in router_config.items()
+        ])
+            
+        client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=10,
+            system=f"Bar router. Current: {current_agent}. Only switch if clearly needed. Reply with ONLY: bart, bernie, jb, hermes, or blanca",
+            messages=[{
+                "role": "user",
+                "content": f"""User: "{user_message}"
+
+    {agent_guide}
+
+    Current: {current_agent}
+    If user mentions agent by name, switch to that agent.
+    Stay with {current_agent} unless user clearly needs someone else."""
+            }]
+        )
+        
+        agent = response.content[0].text.strip().lower().split()[0].split('\n')[0]
+        agent = agent.split()[0]  # Take first word only
+        print(f"DEBUG ROUTER: user_message='{user_message}', current='{current_agent}', LLM returned='{agent}'")
+
+        if agent in ["bart", "bernie", "jb", "hermes", "blanca"]:
+            return agent
+        return current_agent
