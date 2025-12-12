@@ -13,6 +13,10 @@ let onboardingInProgress = false;
 let isApproved = false;
 let anonymousId = generateAnonymousId(); // Generate on page load
 
+let onboardingData = {
+    responses: []
+};
+
 // === DOM Elements ===
 const elements = {
     doorClickable: document.getElementById('door-clickable'),
@@ -131,11 +135,13 @@ async function startOnboarding() {
             showExteriorChatInput();
         } else if (data.approved) {
             isApproved = true;
+            onboardingInProgress = false;
             setTimeout(() => {
                 showStatus('Click door to enter', 'success');
             }, 2000);
         } else {
             displayRejectionMessage();
+            onboardingInProgress = false;
         }
     } catch (error) {
         console.error('Onboarding failed:', error);
@@ -144,6 +150,8 @@ async function startOnboarding() {
 }
 
 async function sendOnboardingMessage(userMessage) {
+    // Store the response
+    onboardingData.responses.push(userMessage);
     try {
         const response = await fetch(`${API_BASE_URL}/api/onboard`, {
             method: 'POST',
@@ -153,7 +161,8 @@ async function sendOnboardingMessage(userMessage) {
             },
             body: JSON.stringify({
                 anonymous_id: anonymousId,
-                message: userMessage
+                message: userMessage,
+                context: onboardingData  // SEND IT TO BACKEND
             })
         });
         
@@ -167,9 +176,11 @@ async function sendOnboardingMessage(userMessage) {
         
         if (data.approved) {
             isApproved = true;
+            onboardingInProgress = false;  // Only end it when approved
             hideExteriorChatInput();
         } else if (!data.continue_onboarding) {
             displayRejectionMessage();
+            onboardingInProgress = false;  // Or rejected
             hideExteriorChatInput();
         }
     } catch (error) {
@@ -210,48 +221,78 @@ function displayOnboardingMessage(speaker, message) {
 }
 
 function showExteriorChatInput() {
+    // Clone the existing input panel structure
     const inputContainer = document.createElement('div');
     inputContainer.id = 'exterior-input';
-    inputContainer.style.position = 'absolute';
-    inputContainer.style.bottom = '5%';
-    inputContainer.style.left = '50%';
-    inputContainer.style.transform = 'translateX(-50%)';
-    inputContainer.style.display = 'flex';
-    inputContainer.style.gap = '10px';
+    inputContainer.className = 'input-panel'; // Use same class
+    inputContainer.style.display = 'block';
+    inputContainer.style.zIndex = '1000';
     
-    inputContainer.innerHTML = `
-        <input type="text" id="onboarding-input" placeholder="Type your response..." 
-               style="width: 300px; padding: 10px; font-size: 16px;">
-        <button id="onboarding-send" style="padding: 10px 20px; cursor: pointer;">Send</button>
-    `;
+    const textarea = document.createElement('textarea');
+    textarea.id = 'onboarding-input';
+    textarea.placeholder = 'Type your response...';
+    textarea.maxLength = 500;
+    textarea.style.width = '100%';
+    textarea.style.minHeight = '80px';
+    textarea.style.background = 'rgba(22, 27, 34, 0.95)';
+    textarea.style.color = '#c9d1d9';
+    textarea.style.border = '1px solid rgba(88, 166, 255, 0.3)';
+    textarea.style.borderRadius = '6px';
+    textarea.style.padding = '12px';
+    textarea.style.fontFamily = 'inherit';
+    textarea.style.fontSize = '0.95em';
+    textarea.style.resize = 'none';
     
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'input-controls';
+    
+    const charCount = document.createElement('span');
+    charCount.id = 'onboarding-char-count';
+    charCount.className = 'char-count';
+    charCount.textContent = '0/500';
+    
+    controlsDiv.appendChild(charCount);
+    inputContainer.appendChild(textarea);
+    inputContainer.appendChild(controlsDiv);
     elements.comicPanel.appendChild(inputContainer);
     
-    // Add event listeners
-    document.getElementById('onboarding-send').addEventListener('click', handleOnboardingSubmit);
-    document.getElementById('onboarding-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+    // Event listeners
+    textarea.addEventListener('input', () => {
+        charCount.textContent = `${textarea.value.length}/500`;
+    });
+    
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleOnboardingSubmit();
+            const message = textarea.value.trim();
+            if (message) {
+                displayOnboardingMessage('user', message);
+                textarea.value = '';
+                charCount.textContent = '0/500';
+                sendOnboardingMessage(message);
+            }
         }
     });
     
-    document.getElementById('onboarding-input').focus();
+    textarea.focus();
 }
 
 function hideExteriorChatInput() {
-    const input = document.getElementById('exterior-input');
-    if (input) input.remove();
+    // Hide it again
+    elements.inputPanel.style.display = 'none';
+    elements.userInput.dataset.onboardingMode = 'false';
+    elements.userInput.placeholder = 'Type your message...';
+    elements.userInput.value = '';
 }
 
 async function handleOnboardingSubmit() {
-    const input = document.getElementById('onboarding-input');
-    const message = input.value.trim();
+    const message = elements.userInput.value.trim();
     
     if (!message) return;
     
     displayOnboardingMessage('user', message);
-    input.value = '';
+    elements.userInput.value = '';
+    updateCharCount();
     
     await sendOnboardingMessage(message);
 }
@@ -272,30 +313,47 @@ function displayRejectionMessage() {
 
 // === Interior Functions ===
 
-function enterBar() {
+async function enterBar() {
     isInside = true;
-    
+
     // Clear onboarding UI
     hideExteriorChatInput();
     const bubbles = elements.comicPanel.querySelectorAll('.onboarding-bubble');
     bubbles.forEach(b => b.remove());
-    
+
     // Switch background
     elements.comicPanel.classList.remove('exterior');
     elements.comicPanel.classList.add('interior');
-    
+
     // Show interior elements
     elements.speechBubblesContainer.style.display = 'flex';
     elements.userInput.style.display = 'block';
     elements.charCount.style.display = 'inline';
     elements.inputPanel.style.display = 'block';
-    
+
     elements.agentPortraits.forEach(portrait => {
         portrait.style.display = 'flex';
     });
-    
-    // Start actual session
-    startSession();
+
+    // Start actual session WITH onboarding context
+    await startSession();
+
+    // Get Bart's greeting
+    const greeting = await fetch(`${API_BASE_URL}/message`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': getAuthHeader()
+        },
+        body: JSON.stringify({
+            session_id: currentSessionId,
+            content: "::USER_ENTERED_BAR::",
+            onboarding_context: onboardingData  // PASS IT HERE
+        })
+    });
+
+    const bartGreeting = await greeting.json();
+    addSpeechBubble(bartGreeting.message, bartGreeting.agent, false);
 }
 
 function addSpeechBubble(content, agent = null, isUser = false) {
@@ -328,8 +386,12 @@ async function startSession() {
         const response = await fetch(`${API_BASE_URL}/session/start`, {
             method: 'POST',
             headers: {
-                'Authorization': getAuthHeader()
-            }
+                'Authorization': getAuthHeader(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                anonymous_id: anonymousId 
+            })  
         });
         
         if (!response.ok) {
@@ -431,7 +493,7 @@ function updateAgentStates(available, muted) {
 elements.doorClickable.addEventListener('click', async () => {
     if (!onboardingInProgress && !isApproved) {
         await startOnboarding();
-    } else if (isApproved) {
+    } else if (isApproved && !isInside) {
         enterBar();
     }
 });
@@ -441,7 +503,12 @@ elements.userInput.addEventListener('input', updateCharCount);
 elements.userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isProcessing) {
         e.preventDefault();
-        sendMessage();
+        
+        if (elements.userInput.dataset.onboardingMode === 'true') {
+            handleOnboardingSubmit();
+        } else {
+            sendMessage();
+        }
     }
 });
 
@@ -470,3 +537,19 @@ elements.agentPortraits.forEach(portrait => {
 console.log('Le Pale Blue Dot - Frontend Initialized');
 console.log('Anonymous ID:', anonymousId);
 setUIState('initial');
+
+// DEV ONLY - Reset onboarding with Ctrl+Shift+R
+document.addEventListener('keydown', async (e) => {
+    if (e.key === 'R' && e.shiftKey && e.ctrlKey) {
+        console.log('Resetting anonymous ID...');
+        
+        // End session if active
+        if (currentSessionId) {
+            console.log('Ending active session first...');
+            // Optionally call an end session endpoint here
+        }
+        
+        localStorage.removeItem('lpbd_anonymous_id');
+        location.reload();
+    }
+});

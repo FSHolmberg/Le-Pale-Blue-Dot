@@ -10,6 +10,7 @@ from src.calais_weather import get_calais_environment
 from src.database.models import get_db, User, Session, Message as DBMessage
 from src.config.loader import Config
 from src.schemas.message import Message
+from src.calais_weather import get_environment_for_agent
 
 import uuid
 import time
@@ -84,37 +85,39 @@ class OnboardResponse(BaseModel):
 
 # --- Endpoints ---
 
-@app.post("/session/start", response_model=SessionStartResponse)
+@app.post("/session/start")
 async def start_session(
+    request: dict, 
     username: str = Depends(verify_credentials),
     db: DBSession = Depends(get_db)):
+
+    anonymous_id = request.get('anonymous_id')
     
-    # Create user (for now, each session = new anonymous user)
-    user = User(
-        anonymous_id=str(uuid.uuid4()),
-        created_at=datetime.now(timezone.utc))
-    db.add(user)
-    db.commit()
+    # Get or create user
+    user = db.query(User).filter(User.anonymous_id == anonymous_id).first()
+    if not user:
+        user = User(anonymous_id=anonymous_id)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     
-    # Get weather
-    weather = get_calais_environment()
+    # Get weather ONCE at session start
+    from src.calais_weather import get_environment_for_agent
+    weather = get_environment_for_agent()
     
-    # Create session
+    # Create session WITH weather
     session = Session(
         user_id=user.id,
         started_at=datetime.now(timezone.utc),
         status="active",
-        weather=weather,
-        message_count=0)
-    
+        weather=weather,  # Store in session for entire session
+        message_count=0
+    )
     db.add(session)
     db.commit()
+    db.refresh(session)
     
-    return SessionStartResponse(
-        session_id=session.id,
-        weather=weather,
-        available_agents=["bart", "bernie", "jb", "blanca", "hermes"],
-        timestamp=datetime.now(timezone.utc).isoformat())
+    return {"session_id": session.id, "status": "active"}
 
 @app.post("/message", response_model=MessageResponse)
 async def send_message(
@@ -140,6 +143,43 @@ async def send_message(
         db.commit()
         raise HTTPException(status_code=429, detail="Message limit reached.")
     
+    # === HANDLE ENTRANCE GREETING ===
+    if request.content == "::USER_ENTERED_BAR::":
+        # Initialize Router WITH WEATHER
+        router = Router(weather_context=session.weather)
+        
+        # Build Message for Router (empty text, just context)
+        msg = Message(
+            user_id=session.user_id,
+            text="User just walked in",
+            session_id=request.session_id
+        )
+        
+        # Get Bart's greeting with full context
+        agent_response = router.execute_agent('bart', msg, db_session=db)
+        
+        # Store only Bart's greeting (not the system message)
+        agent_message = DBMessage(
+            session_id=session.id,
+            agent='bart',
+            content=agent_response,
+            timestamp=datetime.now(timezone.utc),
+            is_user_message=0
+        )
+        db.add(agent_message)
+        db.commit()
+        
+        return MessageResponse(
+            agent='bart',
+            message=agent_response,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            agents_available=["bart", "bernie", "jb", "blanca", "hermes"],
+            agents_muted=[],
+            session_status=session.status,
+            message_count=session.message_count,
+            message_limit=30
+        )
+    
     # Last call warning
     warning = None
     if session.message_count == 25:
@@ -157,8 +197,8 @@ async def send_message(
     session.message_count += 1
     db.commit()
     
-    # Initialize Router
-    router = Router()
+    # Initialize Router WITH WEATHER
+    router = Router(weather_context=session.weather)
     
     # Build Message for Router
     msg = Message(
@@ -228,8 +268,9 @@ async def send_message(
 @app.post("/api/onboard")
 async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
     """
-    Handle onboarding conversation with Blanca at the exterior.
-    Multi-turn conversation until user is approved or rejected.
+    Onboarding:
+    - Returning users: Quick greeting, let them in
+    - New users: Age, name, pronouns, what brings them, been to similar places
     """
     
     # Get or create user
@@ -240,154 +281,200 @@ async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     
-    # Check if user has completed sessions (recurring vs new)
+    # Check if returning user (has completed sessions)
     completed_sessions = db.query(Session).filter_by(
         user_id=user.id,
         status="ended"
     ).count()
     
-    is_new_user = completed_sessions == 0
+    is_returning = completed_sessions > 0
     
-    # Get or create onboarding session
-    # Use a special session type or flag to track onboarding state
-    onboarding_session = db.query(Session).filter_by(
-        user_id=user.id,
-        status="onboarding"
-    ).first()
+    # === RETURNING USER PATH ===
+    if is_returning:
+        if request.message is None:
+            name = user.onboarding_context.get('name', 'friend') if user.onboarding_context else 'friend'
+            return OnboardResponse(
+                message=f"Back again, {name}? Go on in.",
+                approved=True,
+                continue_onboarding=False
+            )
     
-    if not onboarding_session:
-        onboarding_session = Session(
-            user_id=user.id,
-            status="onboarding"
-        )
-        db.add(onboarding_session)
-        db.commit()
-        db.refresh(onboarding_session)
-    
-    # Load onboarding context
-    config = Config()
-    onboarding_config = config.get_onboarding_context(is_new_user)
-    
-    # Get conversation history from this onboarding session
-    previous_messages = db.query(DBMessage).filter_by(
-        session_id=onboarding_session.id
-    ).order_by(DBMessage.timestamp).all()
-    
-    # Build conversation history for Blanca
-    conversation_history = []
-    for msg in previous_messages:
-        role = "user" if msg.is_user_message else "assistant"
-        conversation_history.append({
-            "role": role,
-            "content": msg.content
-        })
-    
-    # If this is initial request (no message), get Blanca's opening
+    # === NEW USER PATH ===
+    # Get or initialize context - MAKE A COPY
+    if user.onboarding_context is None:
+        context = {'step': 'initial'}
+    else:
+        context = dict(user.onboarding_context)  # Make a copy!
+
+    # FIRST VISIT - ask age (only if no message AND initial step)
     if request.message is None:
-        blanca_prompt = config.get_prompt("blanca")
-        blanca_prompt += f"\n\n{onboarding_config}"
+        if context.get('step') == 'initial':
+            context['step'] = 'age'
+            user.onboarding_context = context
+            db.commit()
+            return OnboardResponse(
+                message="First time here? How old are you?",
+                approved=False,
+                continue_onboarding=True
+            )
+        elif context.get('step') == 'complete':
+            # Returning user who already completed onboarding
+            name = context.get('name', 'friend')
+            return OnboardResponse(
+                message=f"Back again, {name}? Go on in.",
+                approved=True,
+                continue_onboarding=False)
+        elif context.get('step') == 'age':
+            return OnboardResponse(
+                message="How old are you?",
+                approved=False,
+                continue_onboarding=True
+            )
+        elif context.get('step') == 'name':
+            return OnboardResponse(
+                message="What should I call you?",
+                approved=False,
+                continue_onboarding=True
+            )
+        elif context.get('step') == 'pronouns':
+            return OnboardResponse(
+                message="Pronouns? Or skip.",
+                approved=False,
+                continue_onboarding=True
+            )
+        elif context.get('step') == 'motivation':
+            return OnboardResponse(
+                message="What brings you here?",
+                approved=False,
+                continue_onboarding=True
+            )
+        elif context.get('step') == 'experience':
+            return OnboardResponse(
+                message="Been to a place like this before?",
+                approved=False,
+                continue_onboarding=True
+            )
+        else:
+            # Unknown state
+            print(f"DEBUG - Unknown step: {context.get('step')}")
+            return OnboardResponse(
+                message="Something went wrong. Try again.",
+                approved=False,
+                continue_onboarding=False
+            )
+    
+    # STEP 1: Validate and store age
+    if context['step'] == 'age':
+        import re
+        age_match = re.search(r'\b(\d+)\b', request.message)
         
+        if not age_match:
+            return OnboardResponse(
+                message="Need a number.",
+                approved=False,
+                continue_onboarding=True
+            )
         
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=150,
-            system=blanca_prompt,
-            messages=[{
-                "role": "user",
-                "content": "A new person just approached the door."
-            }]
-        )
+        age = int(age_match.group(1))
         
-        blanca_message = response.content[0].text
+        if age < 18:
+            return OnboardResponse(
+                message="Too young. Not tonight.",
+                approved=False,
+                continue_onboarding=False
+            )
         
-        # Save Blanca's message
-        msg = DBMessage(
-            session_id=onboarding_session.id,
-            agent="blanca",
-            content=blanca_message,
-            is_user_message=0
-        )
-        db.add(msg)
+        if age > 80:
+            return OnboardResponse(
+                message="Wrong place for you.",
+                approved=False,
+                continue_onboarding=False
+            )
+        
+        # Store age and move to next step
+        context['age'] = age
+        context['step'] = 'name'
+        user.onboarding_context = context
         db.commit()
         
         return OnboardResponse(
-            message=blanca_message,
+            message="What should I call you?",
             approved=False,
             continue_onboarding=True
         )
     
-    # User has responded, save their message
-    user_msg = DBMessage(
-        session_id=onboarding_session.id,
-        agent="user",
-        content=request.message,
-        is_user_message=1
-    )
-    db.add(user_msg)
-    db.commit()
-    
-    # Add user message to conversation history
-    conversation_history.append({
-        "role": "user",
-        "content": request.message
-    })
-    
-    # Get Blanca's response with full context
-    blanca_prompt = config.get_prompt("blanca")
-    blanca_prompt += f"\n\n{onboarding_config}"
-    
-   
-    
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=150,
-        system=blanca_prompt,
-        messages=conversation_history
-    )
-    
-    blanca_message = response.content[0].text
-    
-    # Save Blanca's response
-    msg = DBMessage(
-        session_id=onboarding_session.id,
-        agent="blanca",
-        content=blanca_message,
-        is_user_message=0
-    )
-    db.add(msg)
-    db.commit()
-    
-    # Check if Blanca approved/rejected
-    # Look for approval/rejection signals in her response
-    approved = False
-    continue_onboarding = True
-    
-    blanca_lower = blanca_message.lower()
-    
-    # Approval signals
-    if any(phrase in blanca_lower for phrase in [
-        "welcome in", "alright, welcome", "go on in", "door's open", 
-        "go have a drink", "head on in"
-    ]):
-        approved = True
-        continue_onboarding = False
-        # Mark onboarding session as complete
-        onboarding_session.status = "completed"
+    # STEP 2: Store name
+    if context['step'] == 'name':
+        name = request.message.strip()
+        
+        if not name or len(name) > 30:
+            return OnboardResponse(
+                message="Name?",
+                approved=False,
+                continue_onboarding=True
+            )
+        
+        context['name'] = name
+        context['step'] = 'pronouns'
+        user.onboarding_context = context
         db.commit()
+        
+        return OnboardResponse(
+            message="Pronouns? Or skip.",
+            approved=False,
+            continue_onboarding=True
+        )
     
-    # Rejection signals
-    elif any(phrase in blanca_lower for phrase in [
-        "sorry, not tonight", "not today", "can't let you in", 
-        "come back when", "not the right place"
-    ]):
-        approved = False
-        continue_onboarding = False
-        # Mark onboarding session as rejected
-        onboarding_session.status = "rejected"
+    # STEP 3: Store pronouns (optional)
+    if context['step'] == 'pronouns':
+        pronouns = request.message.strip().lower()
+        
+        # Allow skipping
+        if pronouns in ['skip', 'none', 'pass', 'n/a', '']:
+            context['pronouns'] = None
+        else:
+            context['pronouns'] = pronouns
+        
+        context['step'] = 'motivation'
+        user.onboarding_context = context
         db.commit()
+        
+        return OnboardResponse(
+            message="What brings you here?",
+            approved=False,
+            continue_onboarding=True
+        )
     
+    # STEP 4: Store motivation
+    if context['step'] == 'motivation':
+        context['motivation'] = request.message.strip()
+        context['step'] = 'experience'
+        user.onboarding_context = context
+        db.commit()
+        
+        return OnboardResponse(
+            message="Been to a place like this before?",
+            approved=False,
+            continue_onboarding=True
+        )
+    
+    # STEP 5: Store experience and approve
+    if context['step'] == 'experience':
+        context['experience'] = request.message.strip()
+        context['step'] = 'complete'
+        user.onboarding_context = context
+        db.commit()
+        
+        return OnboardResponse(
+            message="Alright. Head in. Bart's behind the bar.",
+            approved=True,
+            continue_onboarding=False
+        )
+    
+    # Fallback (shouldn't reach here)
+    print(f"DEBUG - Unexpected state. Step: {context.get('step')}, Context: {context}")
     return OnboardResponse(
-        message=blanca_message,
-        approved=approved,
-        continue_onboarding=continue_onboarding
+        message="Something went wrong. Try again.",
+        approved=False,
+        continue_onboarding=False
     )

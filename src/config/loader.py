@@ -8,6 +8,7 @@ class Config:
     def __init__(self, prompts_dir: str = "src/config/prompts") -> None:
         self.prompts_dir = Path(prompts_dir)
         self.data = self._load_all_prompts()
+        self.bar_context = self._load_bar_context()
 
     def _load_all_prompts(self) -> dict:
         """Load all agent prompts from individual YAML files."""
@@ -19,7 +20,7 @@ class Config:
                 agent_config = yaml.safe_load(f)
                 # YAML has agent_name as top-level key, extract it
                 if agent_name in agent_config:
-                    prompts[agent_name] = agent_config[agent_name]  # FIX: Extract nested dict
+                    prompts[agent_name] = agent_config[agent_name]
                 else:
                     prompts[agent_name] = agent_config
         
@@ -35,13 +36,14 @@ class Config:
         with bar_context_path.open("r", encoding="utf-8") as f:
             context_data = yaml.safe_load(f)
             return context_data.get("common_knowledge", "")
+    
+    def get_bar_context(self) -> str:
+        """Get loaded bar context."""
+        return self.bar_context
 
     def get_prompt(self, agent_name: str) -> str:
         section = self.data.get(agent_name, {})
         base_prompt = section.get("system_prompt", "")
-        
-        print(f"DEBUG get_prompt: agent={agent_name}, base_prompt length={len(base_prompt)}")
-        print(f"DEBUG get_prompt: first 200 chars={base_prompt[:200]}")
         
         # Inject bar context only for Blanca (she always onboards, triggers cache)
         if agent_name == "blanca":

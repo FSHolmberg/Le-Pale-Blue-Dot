@@ -13,6 +13,7 @@ class User(Base):
     anonymous_id = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     invite_code = Column(String, nullable=True)
+    onboarding_context = Column(JSON, nullable=True)
     
     sessions = relationship("Session", back_populates="user")
 
@@ -29,6 +30,7 @@ class Session(Base):
     message_count = Column(Integer, default=0)
     pending_handoff = Column(String, nullable=True)
     current_agent = Column(String, default="bart")
+    onboarding_context = Column(JSON, nullable=True) # Stores: {"motivation": "...", "experience_level": "...", "preferred_name": "..."}
     
     user = relationship("User", back_populates="sessions")
     messages = relationship("Message", back_populates="session")

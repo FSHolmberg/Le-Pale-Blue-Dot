@@ -10,7 +10,7 @@ A philosophy-grounded multi-agent conversational AI system set in a noir bar in 
 
 LPBD is a conversational system where users interact with AI agents in a fictional bar on the northern French coast. Each agent has a distinct personality grounded in philosophical frameworks, creating conversations that challenge assumptions and explore ideas through multiple perspectives.
 
-**Current Status**: Working prototype with functional frontend. Placeholder UI and active development toward soft opening to test audience.
+**Current Status**: Working prototype with intelligent routing, conversation memory, and functional web interface (placeholder art). Active development toward soft opening (mid-January 2025).
 
 ## Quick Start
 
@@ -23,11 +23,15 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e ".[dev]"
 
+# Setup database
+psql -c "CREATE DATABASE lpbd_dev;"
+python -c "from src.database.models import init_db; init_db()"
+
 # Set your API key
 export ANTHROPIC_API_KEY="your-key-here"
 
 # Start the server
-make run
+uvicorn src.api:app --reload
 
 # Open browser to http://localhost:8000
 ```
@@ -36,14 +40,13 @@ make run
 ```python
 from src.router import Router
 from src.schemas.message import Message
-from time import time
 
 router = Router()
 
 msg = Message(
     user_id="user1",
-    text="bart, what's your take on failure?",
-    timestamp=time()
+    text="I'm feeling down, any sunshine stories?",
+    session_id="session123"
 )
 agent, reply = router.handle(msg)
 
@@ -52,43 +55,57 @@ print(f"{agent}: {reply}")
 
 ## The Bar
 
-**Le Pale Blue Dot** - A 24/7 noir bar in Calais (opened November 1913, closes only on leap day). The bar features live weather from the English Channel, eclectic music (Afrobeat to The Young Gods), and five distinct voices.
+**Le Pale Blue Dot** - A 24/7 noir bar in Calais (opened November 1913, closes only on leap day). The bar features live weather from the English Channel, real tide data, eclectic music (Afrobeat to The Young Gods), and five distinct voices.
 
 ## The Agents
 
-**Bart** (Bartender) - Welsh Traveller, pushing 50. Probing conversationalist who challenges assumptions and suggests bold moves. Inspired by antifragility concepts and absurdist lucidity.
+**Bart** (Bartender) - Welsh Traveller, pushing 50. Probing conversationalist who challenges assumptions and suggests bold moves. Default agent for general conversation.
 
-**Bernie** (Optimist) - Affirms the present without false hope. Shares historical anecdotes of human decency and resilience. Knows the bar's history.
+**Bernie** (Optimist) - Warm regular who shares positive historical stories from the "Decency Digest." Offers gentle perspective and affirmation.
 
-**JB** (Language Critic) - Demands linguistic precision. Treats language as moral responsibility. A bit annoying, as language critics tend to be.
+**JB** (Language Critic) - British language perfectionist. Eviscerates bad grammar and imprecise language with contemptuous precision.
 
-**Blanca** (Moderator/Bouncer) - Tactical referee managing conversation flow and boundaries. Values structure and knows when to intervene.
+**Blanca** (Moderator/Bouncer) - Tactical observer who sits by the entrance. Manages conversation flow and boundaries with clinical detachment.
 
-**Hermes** (Ethical Oversight) - Crisis intervention specialist. Automatically triggered by crisis keywords. Handles ethical dilemmas with practical resources.
+**Hermes** (Crisis Counselor) - Quiet philosopher who handles ethical dilemmas and crisis intervention with practical resources.
 
 ~~**Bukowski** (Ledger)~~ - Mechanical archivist. *(Currently disabled - standalone desktop app in development)*
 
 ## Features
 
-### Current (v0.1.0+)
+### Current (v0.2.0)
 
+**Core System:**
 - Five fully implemented agents with distinct personalities
-- FastAPI backend with PostgreSQL session management
-- Placeholder web interface (graphic novel aesthetic)
-- Agent selection routing (click agent → direct message)
-- Spatial speech bubble positioning
-- Live Calais weather integration
-- Crisis detection and automatic routing to Hermes
-- Message history and persistence
-- Modular YAML-based prompt system
+- LLM-based routing with agent stickiness (stays with current agent unless topic clearly changes)
+- Conversation memory system (cold/hot storage architecture)
+- Agents remember context from previous messages in session
+- FastAPI backend with PostgreSQL for session management
+- Web interface with graphic novel aesthetic (placeholder art)
+
+**Routing Intelligence:**
+- Smart agent selection based on user intent
+- Agent stickiness: continues with current agent unless switch is needed
+- Explicit handoffs: agents can say "Let me get [Agent]" to pass conversation
+- Crisis detection automatically routes to Hermes
+- Manual agent selection via UI or prefix ("bernie: message")
+
+**Data & Integration:**
+- Live Calais weather via StormGlass API
+- Real tide data for Calais harbor
+- Session-based conversation archiving (first 3 + last 10 messages per session)
+- Message history with 30-message limit per session
+
+**Testing:**
 - 102 passing tests (behavioral + property-based)
+- Modular YAML-based prompt system
+- Full test coverage for routing and memory systems
 
 ### In Development
 
-- Conversation history (agents can reference previous exchanges)
-- Response verbosity tuning
-- Visual polish and production assets
-- Bar lore and agent backstories
+- Response verbosity tuning (agents sometimes too verbose)
+- Visual polish and production assets (commissioned noir artwork)
+- Enhanced agent backstories and bar lore
 - Bukowski standalone desktop app
 - Production deployment (Railway)
 
@@ -96,23 +113,25 @@ print(f"{agent}: {reply}")
 
 ### Web Interface
 
-Click an agent's avatar to select them, then type your message. The agent will respond with a speech bubble positioned near them in the bar scene.
+The system intelligently routes your message to the most appropriate agent:
 
-**Default**: Messages without agent selection go to Bart
+- **General conversation** → Bart
+- **Feeling down, need encouragement** → Bernie  
+- **Language/grammar help** → JB
+- **Ethical questions** → Hermes
+- **Crisis keywords** → Hermes (automatic)
 
-### CLI/API
-```python
-# Direct routing
-"[message]"              # → Bart (default)
-"bernie: [message]"      # → Bernie  
-"jb: [message]"          # → JB
-"hermes: [message]"      # → Hermes
-"blanca: [message]"      # → Blanca
+You can also click an agent's avatar to speak with them directly, or type their name:
 ```
+"bernie, got any sunshine stories?"
+"jb, how do I write this better?"
+```
+
+**Agent Stickiness**: Once you're talking to an agent, the system keeps you with them unless you explicitly ask for someone else or the topic clearly changes.
 
 ### System Commands
 ```python
-"mute bernie"            # Silence Bernie
+"mute bernie"            # Silence Bernie (Bernie and JB can be muted)
 "unmute bernie"          # Restore Bernie
 ```
 
@@ -120,7 +139,7 @@ Note: Bart, Blanca, and Hermes cannot be muted (essential functions).
 
 ### Crisis Detection
 
-Messages containing self-harm or violence keywords automatically route to Hermes.
+Messages containing self-harm or violence keywords automatically route to Hermes, who provides crisis resources.
 
 ## Architecture
 
@@ -132,29 +151,36 @@ Pre-Router Scan (caps, empty messages) → Blanca
     ↓
 Crisis Detection → Hermes (if triggered)
     ↓
-Agent Prefix Parsing (bart:, bernie:, etc.)
+LLM Router (Haiku 4.5) → Determines best agent based on:
+    - Current agent (stickiness)
+    - User intent
+    - Topic expertise needed
     ↓
-Mute Check (skip if muted)
+Memory Injection → Loads conversation history:
+    - Cold storage: Last 4 sessions (3 first + 10 last messages each)
+    - Hot storage: Current session (all messages)
     ↓
-Agent Response (Claude Sonnet 4 via Anthropic API)
+Agent Response (Claude Sonnet 4.5)
     ↓
-History + Database Logging
+Session Update → Store in PostgreSQL
 ```
 
 ### Tech Stack
 
 **Backend**:
-- Python 3.10+
+- Python 3.14
 - FastAPI for web API
-- PostgreSQL for session persistence
-- Anthropic Claude API (Sonnet 4)
+- PostgreSQL for session persistence & conversation memory
+- SQLAlchemy ORM
+- Anthropic Claude API (Sonnet 4.5 for agents, Haiku 4.5 for routing)
 - Pydantic for validation
 - Pytest + Hypothesis for testing
 
-**Frontend** (Placeholder):
+**Frontend**:
 - Vanilla JavaScript
 - CSS positioning for spatial UI
 - Graphic novel aesthetic (noir/dark turquoise palette)
+- Placeholder art (commissioned work in progress)
 
 ## Project Structure
 ```
@@ -164,13 +190,16 @@ lpbd/
 │   ├── config/
 │   │   ├── prompts/         # Modular agent-specific YAML configs
 │   │   └── loader.py        # Config management
+│   ├── database/
+│   │   ├── models.py        # SQLAlchemy models (User, Session, Message, MessageArchive)
+│   │   └── memory_manager.py # Cold/hot storage for conversation history
 │   ├── tests/               # 102 behavioral and property tests
 │   ├── api.py               # FastAPI endpoints
-│   ├── router.py            # Main routing logic
-│   ├── history.py           # Message persistence
+│   ├── router.py            # LLM-based routing with agent stickiness
 │   ├── calais_weather.py    # Live weather integration
-│   └── main.py              # CLI entry point
-├── frontend/                # Placeholder web interface
+│   └── schemas/             # Pydantic models
+├── frontend/                # Web interface
+├── Makefile                 # Common commands (make sesh, make run)
 ├── pyproject.toml           # Package configuration
 └── README.md
 ```
@@ -184,11 +213,18 @@ python -m venv venv
 source venv/bin/activate
 pip install -e ".[dev]"
 
+# Setup database
+psql -c "CREATE DATABASE lpbd_dev;"
+python -c "from src.database.models import init_db; init_db()"
+
 # Run tests
 pytest src/tests/ -v
 
 # Run server
-make run
+uvicorn src.api:app --reload
+
+# Debug: View last conversation
+make sesh
 
 # Run specific agent tests
 pytest src/tests/test_bart.py -v
@@ -210,8 +246,17 @@ The system rejects AI as productivity optimization—instead, it explores AI as 
 
 - **Grounded in place**: Real weather, specific location, physical space
 - **Philosophically coherent**: Agents behave consistently with their frameworks
+- **Intelligent routing**: LLM decides which agent best serves the conversation
+- **Conversation continuity**: Agents remember context, conversations feel natural
 - **Anti-sycophant**: No corporate AI politeness, no optimization for comfort
 - **Portfolio over product**: Demonstrates thoughtful AI design, not startup hustle
+
+## Roadmap
+
+**v0.2.0** (Current): LLM routing + conversation memory  
+**v0.3.0** (Jan 2025): Visual polish + soft opening  
+**v0.4.0** (Q1 2025): Bukowski standalone app  
+**v1.0.0** (Q2 2025): Public launch + production deployment
 
 ## License
 
@@ -219,6 +264,6 @@ MIT License - see LICENSE file
 
 ## Author
 
-Fredrik Holmberg 
+Fredrik Holmberg  
 Email: fredriksayedholmberg@gmail.com  
 GitHub: [@FSHolmberg](https://github.com/FSHolmberg)

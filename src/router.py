@@ -17,8 +17,11 @@ from src.database.memory_manager import MemoryManager
 from src.database.models import get_db
 
 class Router:
-    def __init__(self, history: MessageHistory | None = None, config: Config | None = None) -> None:
+    def __init__(self, history: MessageHistory | None = None, config: Config | None = None, weather_context: str = None) -> None:
         self.config = config or Config()
+        self.weather_context = weather_context
+        self.bar_context = self.config.get_bar_context()
+        
         self.bart = Bart(prompt=self.config.get_prompt("bart"))
         self.blanca = Blanca(prompt=self.config.get_prompt("blanca"))
         self.jb = JB(prompt=self.config.get_prompt("jb"))
@@ -27,7 +30,6 @@ class Router:
         self.last_agent = "bart"
 
         self.history_persistence = HistoryPersistence()
-        # Load existing history if available, otherwise use provided or create new
         if history is None:
             self.history = self.history_persistence.load()
         else:
@@ -38,7 +40,7 @@ class Router:
 
         self.logger = setup_logger()
         self.muted_agents = set()
-        self.memory_mgr = None 
+        self.memory_mgr = None
 
     def save_state(self) -> None:
         """Save conversation history to disk."""
@@ -142,25 +144,50 @@ class Router:
         """Scan for rule violations before routing."""
         return self.blanca.scan_for_violations(user_text)
     
-    def _inject_history_context(self, agent_prompt: str, user_id: str, session_id: str) -> str:
+    def _inject_history_context(self, agent_prompt: str, user_id: str, session_id: str, db_session) -> str:
         """
-        Inject conversation history into agent prompt.
-        Returns: Modified prompt with history context prepended.
+        Inject: bar context (static) + onboarding info + conversation history + weather
         """
-        if not self.memory_mgr:
-            return agent_prompt  # No DB session available, skip history
+        context_parts = []
         
-        # Get full context (cold + hot storage)
-        messages = self.memory_mgr.get_full_context(user_id, session_id)
+        # 1. BAR CONTEXT (static knowledge, loaded once)
+        if self.bar_context:
+            context_parts.append(f"=== BAR KNOWLEDGE ===\n{self.bar_context}")
         
-        if not messages:
-            return agent_prompt  # No history yet
+        # 2. ONBOARDING CONTEXT (from user)
+        if db_session:
+            from src.database.models import User
+            user = db_session.query(User).filter(User.id == user_id).first()
+            if user and user.onboarding_context:
+                onboarding_text = (
+                    f"=== ABOUT THIS PERSON ===\n"
+                    f"Age: {user.onboarding_context.get('age', 'unknown')}\n"
+                    f"Name: {user.onboarding_context.get('name', 'unknown')}\n"
+                    f"Pronouns: {user.onboarding_context.get('pronouns', 'not specified')}\n"
+                    f"Why they came: {user.onboarding_context.get('motivation', 'unknown')}\n"
+                    f"Prior experience: {user.onboarding_context.get('experience', 'unknown')}"
+                )
+                context_parts.append(onboarding_text)
         
-        # Format for context injection
-        history_context = self.memory_mgr.format_for_agent_context(messages)
+        # 3. CONVERSATION HISTORY (from database)
+        if self.memory_mgr:
+            messages = self.memory_mgr.get_full_context(user_id, session_id)
+            if messages:
+                history_text = self.memory_mgr.format_for_agent_context(messages)
+                context_parts.append(f"=== CONVERSATION HISTORY ===\n{history_text}")
         
-        # Inject BEFORE the main agent instructions
-        return f"{history_context}\n\n{agent_prompt}"
+        # 4. CURRENT WEATHER (from session, cached at session start)
+        if self.weather_context:
+            context_parts.append(f"=== CURRENT CONDITIONS ===\n{self.weather_context}")
+        
+        # Assemble full context
+        if context_parts:
+            full_context = "\n\n".join(context_parts)
+            final_prompt = f"{full_context}\n\n{'='*50}\n\n{agent_prompt}"
+            
+            return final_prompt
+        
+        return agent_prompt
 
     def handle(self, message: Message, db_session=None) -> tuple[str, str]:
         user_id = message.user_id
@@ -170,15 +197,16 @@ class Router:
         clean = text.strip().lower()
 
         try:
-            # Pre-router scan for violations
-            has_violation, warning = self._pre_route_scan(text)
-            if has_violation:
-                self.logger.warning("Rule violation", extra={
-                    "user_id": user_id,
-                    "violation_type": "tone",
-                    "warning": warning
-                })
-                return "blanca", warning
+            if not text.startswith("::"):
+                # Pre-router scan for violations
+                has_violation, warning = self._pre_route_scan(text)
+                if has_violation:
+                    self.logger.warning("Rule violation", extra={
+                        "user_id": user_id,
+                        "violation_type": "tone",
+                        "warning": warning
+                    })
+                    return "blanca", warning
             
             # Mute/unmute commands
             if clean.startswith("mute "):
@@ -235,7 +263,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     agent_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 
                 if agent_name == "bart":
@@ -317,7 +346,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     bart_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 bart_with_history = Bart(prompt=enhanced_prompt)
                 reply = bart_with_history.respond(text)
@@ -329,7 +359,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     bernie_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 bernie_with_history = Bernie(prompt=enhanced_prompt)
                 reply = bernie_with_history.respond(text)
@@ -341,7 +372,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     jb_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 jb_with_history = JB(prompt=enhanced_prompt)
                 reply = jb_with_history.respond(text)
@@ -353,7 +385,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     blanca_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 blanca_with_history = Blanca(prompt=enhanced_prompt)
                 reply = blanca_with_history.respond(text)
@@ -365,7 +398,8 @@ class Router:
                 enhanced_prompt = self._inject_history_context(
                     hermes_prompt, 
                     user_id, 
-                    message.session_id
+                    message.session_id,
+                    db_session
                 )
                 hermes_with_history = Hermes(prompt=enhanced_prompt)
                 reply = hermes_with_history.respond(text)
@@ -432,8 +466,17 @@ class Router:
         
         agent = response.content[0].text.strip().lower().split()[0].split('\n')[0]
         agent = agent.split()[0]  # Take first word only
-        print(f"DEBUG ROUTER: user_message='{user_message}', current='{current_agent}', LLM returned='{agent}'")
 
         if agent in ["bart", "bernie", "jb", "hermes", "blanca"]:
             return agent
         return current_agent
+    
+    def route_message(self, message: str, user_id: str, session_id: str) -> str:
+        if message == "::USER_ENTERED_BAR::":
+            # Force Bart, get greeting
+            return self._get_agent_response(
+                'bart', 
+                "User just walked in. Greet them.", 
+                user_id, 
+                session_id
+            )

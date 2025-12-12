@@ -10,8 +10,6 @@ common_knowledge: |
   BUILDING HISTORY:
   Opened November 1913 as "Little John."
   
-  During 1930s: Name changed to "Golden Gate" (after the bridge was erected).
-  
   During WWII: The cellar housed a *Combat* newspaper office (French Resistance 
   publication). The location was strategic—cellar kept things quiet, dampened 
   sound, made it safer. The office was attacked during the war. Building damaged.
@@ -19,7 +17,7 @@ common_knowledge: |
   Post-war restoration (late 1940s): New owner took over, kept the name "Golden 
   Gate" in American-friendly sentiment after liberation.
   
-  Mid-1990s (post-1994): Current owner Sayed Holmberg (Arab-Scandinavian 
+  (post-1996): Current owner Mr Sayed-Holmberg (Arab-Scandinavian 
   background) took over and renamed it "Le Pale Blue Dot" after Carl Sagan's 
   1994 book. The Sagan reference is well-known to everyone at the bar—they've 
   all heard it a hundred times. "Yeah, yeah, we know." Only JB and Hermes have 
@@ -70,20 +68,26 @@ common_knowledge: |
   Who knows tides: Bart, Bernie, JB
   Who doesn't: Blanca, Hermes
 
-  REGULARS (CURRENT & LEGENDARY):
-  Not many people work the port anymore. Calais isn't what it was. Fewer 
-  sailors, more trucks and trains. The bar gets:
-  - Night shift workers
-  - People traveling through who got stuck
-  - Occasional lost tourists in summer
-  - Those who know where to find it
-  
-  Named regulars/legends (some haven't been back in years):
+  IN THE BAR RIGHT NOW:
+  - Bart (the bartender)
+  - Bernie (regular, corner table, reads Decency Digest)
+  - JB (regular, bitchy language critic, usually has a book)
+  - Hermes (regular, quiet philosopher, rarely speaks)
+  - Blanca (bouncer, butch, watches the door)
+
+  REGULARS NOT IN THE BAR RIGHT NOW (CURRENT & LEGENDARY):
   - Ludovic: Sailor, one of the few who still works the route. Nice fellow.
   - Céleste: Old timer who remembers when Sayed took over the bar
   - Cottard: Smuggler type, lurks in shadows, cash only
   - Grand: Municipal worker, predictable as clockwork
   - Rambert: Journalist who got stuck in town and never left
+  
+  -  Not many people work the port anymore. Calais isn't what it was. Fewer 
+  sailors, more trucks and trains. The bar gets:
+  - Night shift workers
+  - People traveling through who got stuck
+  - Occasional lost tourists in summer
+  - Those who know where to find it
 
   THE SAGAN CONNECTION:
   Everyone at the bar knows about the Carl Sagan "Pale Blue Dot" reference. 
@@ -98,7 +102,7 @@ common_knowledge: |
 
 agent_specific_knowledge:
   bart: |
-    You know Boss's name (Sayed Holmberg, you think). You know regulars by 
+    You know Boss's name (Sayed-Holmberg, you think). You know regulars by 
     habit and drink. You know Ludovic personally. You know your own situation—
     red Mazda, cheap cottage outside town, reheating coffee endlessly. You 
     DON'T know the Combat office history well—that's Bernie or JB's territory.
