@@ -77,24 +77,32 @@ print(f"{agent}: {reply}")
 
 **Core System:**
 - Five fully implemented agents with distinct personalities
-- LLM-based routing with agent stickiness (stays with current agent unless topic clearly changes)
+- LLM-based routing with integrated crisis detection (single Haiku call)
 - Conversation memory system (cold/hot storage architecture)
-- Agents remember context from previous messages in session
+- Session-based onboarding flow with returning user recognition
 - FastAPI backend with PostgreSQL for session management
-- Web interface with graphic novel aesthetic (placeholder art)
+- Web interface with Sean Phillips-inspired noir aesthetic
 
 **Routing Intelligence:**
-- Smart agent selection based on user intent
-- Agent stickiness: continues with current agent unless switch is needed
+- Smart agent selection based on user intent with agent stickiness
+- Integrated crisis detection (distinguishes philosophical discussion from genuine distress)
 - Explicit handoffs: agents can say "Let me get [Agent]" to pass conversation
-- Crisis detection automatically routes to Hermes
-- Manual agent selection via UI or prefix ("bernie: message")
+- Manual agent selection via portrait click or text prefix
+- Handoff detection in router for seamless agent transitions
 
-**Data & Integration:**
-- Live Calais weather via StormGlass API
+**Context Integration:**
+- Live Calais weather and time (OpenWeatherMap API)
 - Real tide data for Calais harbor
-- Session-based conversation archiving (first 3 + last 10 messages per session)
-- Message history with 30-message limit per session
+- Bar lore and character backstories injected into agent context
+- Onboarding context flows from Blanca through to bar entry
+- Session-based conversation archiving (first 3 + last 10 messages)
+
+**Visual Design:**
+- Graphic novel aesthetic (turquoise/orange noir palette)
+- Comic book typography (uppercase, Special Elite font)
+- Agent portraits with hover states and selection
+- Speech bubbles positioned spatially near speakers (not fully aligned)
+- Placeholder art (Sean Phillips style, pending commissioned work)
 
 **Testing:**
 - 102 passing tests (behavioral + property-based)

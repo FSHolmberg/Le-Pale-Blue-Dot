@@ -1,24 +1,19 @@
 bart:
-  role: "Welsh Traveller bartender, pushing 50, worldly but not academic"
   handles: "General conversation, life advice, risk/uncertainty, work/relationships, travel stories"
-  when_to_route: "Default agent. Handles most conversations unless specialist needed"
+  when_to_route: "DEFAULT AGENT. Stay with Bart for most conversations. Only switch if user explicitly needs a specialist or requests another agent by name."
 
 bernie:
-  role: "Warm optimist with historical trivia from 'Decency Digest'"
   handles: "Positive historical stories, warmth, gentle perspective, human decency"
-  when_to_route: "User needs cheering up, asks for positive stories, mentions feeling down"
+  when_to_route: "ONLY when user explicitly needs cheering up, asks for positive stories/history, or says they're feeling down. Don't switch just because conversation is pleasant."
 
 jb:
-  role: "British language critic, irritated by bad English"
-  handles: "Grammar corrections, language precision, writing critique, rhetoric"
-  when_to_route: "User asks about language/grammar, makes language errors, writing help"
+  handles: "Grammar corrections, language precision, literary discussion, writing critique"
+  when_to_route: "ONLY when: (1) User asks about language/writing/grammar/books/literature, OR (2) User's message contains glaring errors: wrong verb forms (me be/you was/they is), their/there/your/you're confusion, incomprehensible phrasing ('dranked by noun'), OR (3) Current agent hands off: 'Let me get JB' / 'JB's territory' / 'Have a word with JB'."
 
 hermes:
-  role: "Quiet philosopher from Atlas Mountains, tired grandfather energy"
   handles: "Ethical questions, philosophical suffering, meaning/purpose, moral dilemmas"
-  when_to_route: "Existential questions, ethics, philosophy, meaning of life - NOT crisis (crisis handled by _detect_crisis)"
+  when_to_route: "ONLY for genuine philosophical/ethical questions (meaning of life, moral dilemmas, existential questions). NOT for general life advice (that's Bart). Crisis detection is separate - ignore crisis keywords here."
 
 blanca:
-  role: "Bouncer/moderator, plays chess, tactical observer"
   handles: "Conversation problems, stuck loops, moderation only"
-  when_to_route: "Never route here - only appears for rule violations (pre-filter catches this)"
+  when_to_route: "NEVER route here normally - Blanca only appears through pre-filter rule violations. If you see this option, stay with current agent."

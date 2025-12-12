@@ -10,15 +10,15 @@ common_knowledge: |
   BUILDING HISTORY:
   Opened November 1913 as "Little John."
   
-  During WWII: The cellar housed a *Combat* newspaper office (French Resistance 
+  During WWII: The cellar housed a Combat newspaper office (French Resistance 
   publication). The location was strategic—cellar kept things quiet, dampened 
   sound, made it safer. The office was attacked during the war. Building damaged.
   
-  Post-war restoration (late 1940s): New owner took over, kept the name "Golden 
+  Post-war restoration (late 1940s): New owner took over, changed the name to "Golden 
   Gate" in American-friendly sentiment after liberation.
   
-  (post-1996): Current owner Mr Sayed-Holmberg (Arab-Scandinavian 
-  background) took over and renamed it "Le Pale Blue Dot" after Carl Sagan's 
+  Modern times: Current owner Mr Sayed-Holmberg (Arab-Scandinavian 
+  background) took over 1996 and renamed it "Le Pale Blue Dot" after Carl Sagan's 
   1994 book. The Sagan reference is well-known to everyone at the bar—they've 
   all heard it a hundred times. "Yeah, yeah, we know." Only JB and Hermes have 
   actually read the book.
@@ -27,13 +27,13 @@ common_knowledge: |
   Open 24/7. Only closes on leap day (February 29th). No explanation given. 
   It's been this way since Sayed took over.
   
-  Owner: Sayed Holmberg. Most people don't know his full name. Bart calls him 
+  Owner: Sayed-Holmberg. Most people don't know his full name. Bart calls him 
   "Boss."
 
   THE SPACE:
   Cellar bar. Sound is naturally dampened—chairs scrape but don't echo, 
   conversations stay contained. Not much street noise. Occasionally dogs 
-  barking. The radio is always on.
+  barking.
 
   WHAT YOU HEAR:
   - Radio playing eclectic mix: Afrobeat, Brian Eno, Gnawa, The Who, The Doors, 
@@ -60,6 +60,10 @@ common_knowledge: |
   - Croque monsieur (price worthy, good quality)
   - Popcorn with Tabasco Habanero
 
+  DRINKS:
+  - Basically anything but Karhu is always the beer of the week
+  - Barbanegra is the house grogg
+
   THE TIDES:
   Some regulars know the tides instinctively—especially those with maritime 
   background. Low tide brings seagulls closer, changes the feel of the air. 
@@ -76,24 +80,22 @@ common_knowledge: |
   - Blanca (bouncer, butch, watches the door)
 
   REGULARS NOT IN THE BAR RIGHT NOW (CURRENT & LEGENDARY):
-  - Ludovic: Sailor, one of the few who still works the route. Nice fellow.
+  - Ludovic: Sailor, one of the few who still works the route. Nice fellow. (just left)
   - Céleste: Old timer who remembers when Sayed took over the bar
   - Cottard: Smuggler type, lurks in shadows, cash only
-  - Grand: Municipal worker, predictable as clockwork
+  - Grand: Municipal worker, predictable as clockwork (but not been in for a while)
   - Rambert: Journalist who got stuck in town and never left
   
-  -  Not many people work the port anymore. Calais isn't what it was. Fewer 
-  sailors, more trucks and trains. The bar gets:
-  - Night shift workers
-  - People traveling through who got stuck
-  - Occasional lost tourists in summer
-  - Those who know where to find it
+  - Not many people work the port anymore. Calais isn't what it was. Fewer 
+  sailors, more trucks and trains.
+  - The bar gets: Night shift workers, people traveling through who got stuck,
+  occasional lost tourists in summer, those who know where to find it.
 
   THE SAGAN CONNECTION:
   Everyone at the bar knows about the Carl Sagan "Pale Blue Dot" reference. 
   They've all heard it explained a hundred times. Standard response: "Yeah, 
   yeah, we know." It's not a novelty anymore. Only JB and Hermes have actually 
-  read the book—JB can quote the passage (but does so sparingly, in moderation).
+  read the book. JB can quote the passage (but does so sparingly, in moderation).
 
   THE ABSURD FACT:
   A bar that never closes (except leap day) in a port town where fewer people 
@@ -109,14 +111,14 @@ agent_specific_knowledge:
     You know the tides instinctively.
 
   bernie: |
-    You know the *Combat* newspaper office history intimately—the Resistance 
+    You know the Combat newspaper office history intimately—the Resistance 
     connection, the attack during the war, what it meant for the neighborhood. 
     You know the bar's trajectory through decades, stories of legendary regulars, 
     optimistic interpretation of the space's survival through wars and changing 
     times. You know the tides.
 
   jb: |
-    You know the *Combat* connection from the journalism/language angle. You've 
+    You know the Combat connection from the journalism/language angle. You've 
     read Sagan's book and can quote the "Pale Blue Dot" passage—but you do so 
     sparingly, it's tasty in moderation, everyone's heard it a hundred times. 
     You notice how language has evolved in the bar over time, track linguistic 

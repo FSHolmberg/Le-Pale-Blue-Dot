@@ -137,7 +137,6 @@ async function startOnboarding() {
             isApproved = true;
             onboardingInProgress = false;
             setTimeout(() => {
-                showStatus('Click door to enter', 'success');
             }, 2000);
         } else {
             displayRejectionMessage();
@@ -201,8 +200,8 @@ function displayOnboardingMessage(speaker, message) {
     
     // Position bubble above Blanca (she's on the right side)
     if (speaker === 'blanca') {
-        bubble.style.bottom = '55%';  // Above her head
-        bubble.style.right = '15%';    // Right side where she stands
+        bubble.style.bottom = '55%';
+        bubble.style.right = '15%';
         bubble.style.left = 'auto';
     } else {
         // User bubble - center bottom
@@ -213,9 +212,10 @@ function displayOnboardingMessage(speaker, message) {
     
     bubble.style.maxWidth = '400px';
     bubble.style.padding = '15px';
-    bubble.style.background = 'rgba(0,0,0,0.8)';
-    bubble.style.color = '#00ffcc';
-    bubble.style.borderRadius = '8px';
+    bubble.style.background = 'rgba(255, 255, 255, 0.95)';  // White
+    bubble.style.color = '#000';  // Black text
+    bubble.style.border = '3px solid #000';  // Black border
+    bubble.style.borderRadius = '12px';
     
     elements.comicPanel.appendChild(bubble);
 }

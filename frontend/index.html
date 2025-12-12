@@ -9,15 +9,17 @@
 <body>
     <div class="page-container">
 
-        <!-- Main comic panel: exterior or interior -->
+        <!-- Main comic panel: exterior or interior 
+                background: rgba(255, 0, 0, 0.3) !important;
+                border: 2px solid red !important; -->
         <div id="comic-panel" class="comic-panel exterior">
             <div id="door-clickable" style="
                 position: absolute;
-                bottom: 16%;
-                left: 59%;
+                bottom: 29%;
+                left: 62%;
                 transform: translateX(-50%);
-                width: 300px;
-                height: 60%;
+                width: 240px;
+                height: 48%;
                 cursor: pointer;
             "></div>
 
@@ -25,25 +27,29 @@
             <div id="speech-bubbles-container" style="display: none;">
             </div>
             
-            <!-- Agent portraits bar (only visible in interior) -->
+            <!-- Agent portraits -->
             <div class="agent-portrait" data-agent="bart" title="Lucidity" style="display: none;">
-                <span class="agent-initial">B</span>
+                <img src="assets/lpbd-placeholder_bart1.png" alt="Bart" class="agent-image">
                 <span class="agent-name">Bart</span>
             </div>
+
             <div class="agent-portrait" data-agent="bernie" title="Decency" style="display: none;">
-                <span class="agent-initial">B</span>
+                <img src="assets/lpbd-placeholder_bernie1.png" alt="Bernie" class="agent-image">
                 <span class="agent-name">Bernie</span>
             </div>
+
             <div class="agent-portrait" data-agent="jb" title="Clarity" style="display: none;">
-                <span class="agent-initial">JB</span>
+                <img src="assets/lpbd-placeholder_JB1.png" alt="JB" class="agent-image">
                 <span class="agent-name">JB</span>
             </div>
+
             <div class="agent-portrait" data-agent="blanca" title="Boundary" style="display: none;">
-                <span class="agent-initial">B</span>
+                <img src="assets/lpbd-placeholder_blanca1.png" alt="Blanca" class="agent-image">
                 <span class="agent-name">Blanca</span>
             </div>
+
             <div class="agent-portrait" data-agent="hermes" title="Responsibilty" style="display: none;">
-                <span class="agent-initial">H</span>
+                <img src="assets/lpbd-placeholder_hermes1.png" alt="Hermes" class="agent-image">
                 <span class="agent-name">Hermes</span>
             </div>
             </div>

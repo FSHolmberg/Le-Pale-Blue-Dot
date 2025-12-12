@@ -273,7 +273,7 @@ async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
     - New users: Age, name, pronouns, what brings them, been to similar places
     """
     
-    # Get or create user
+    # Get or create user FIRST
     user = db.query(User).filter_by(anonymous_id=request.anonymous_id).first()
     if not user:
         user = User(anonymous_id=request.anonymous_id)
@@ -300,11 +300,20 @@ async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
             )
     
     # === NEW USER PATH ===
-    # Get or initialize context - MAKE A COPY
+    # Get or initialize context
     if user.onboarding_context is None:
         context = {'step': 'initial'}
     else:
-        context = dict(user.onboarding_context)  # Make a copy!
+        context = dict(user.onboarding_context)
+
+    # CHECK IF ONBOARDING IS COMPLETE (before any other logic)
+    if context.get('step') == 'complete' and request.message is None:
+        name = context.get('name', 'friend')
+        return OnboardResponse(
+            message=f"Back again, {name}? Go on in.",
+            approved=True,
+            continue_onboarding=False
+        )
 
     # FIRST VISIT - ask age (only if no message AND initial step)
     if request.message is None:
@@ -317,6 +326,7 @@ async def onboard(request: OnboardRequest, db: Session = Depends(get_db)):
                 approved=False,
                 continue_onboarding=True
             )
+        # ... rest of your code
         elif context.get('step') == 'complete':
             # Returning user who already completed onboarding
             name = context.get('name', 'friend')

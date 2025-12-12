@@ -59,22 +59,6 @@ class Router:
             "text": getattr(message, 'text', None)
         })
         return "blanca", reply
-    
-    def _detect_crisis(self, text: str) -> bool:
-        """Detect crisis language that should route to Hermes."""
-        crisis_patterns = [
-            "kill myself", "kill my", "end it all", "suicide", "want to die", "end my life",
-            "hurt myself", "self harm", "cut myself", "hurting someone",
-            "kill someone", "hurt someone", "hurt my", "hurting my",
-            "hurting them", "hurt them", "murder", "going to hurt"
-        ]
-        clean = text.lower()
-
-        # Allow "suicide mission" as false positive
-        if "suicide mission" in clean:
-            return False
-            
-        return any(pattern in clean for pattern in crisis_patterns)
         
     def _should_handoff(self, user_message: str, agent_name: str, agent_response: str) -> str | None:
         """
@@ -229,12 +213,8 @@ class Router:
                 })
                 return "system", reply
             
-            # PRIORITY 1: Crisis detection (always Hermes)
-            if self._detect_crisis(text):
-                agent_name = "hermes"
-            
-            # PRIORITY 2: Explicit agent selection (user types "bernie:", "jb:", etc.)
-            elif clean.startswith("jb"):
+            # 1: Explicit agent selection (user types "bernie:", "jb:", etc.)
+            if clean.startswith("jb"):
                 text = text[2:].strip(":, ") or text
                 agent_name = "jb" if "jb" not in self.muted_agents else "bart"
             
@@ -250,7 +230,7 @@ class Router:
                 text = text[6:].strip(":, ") or text
                 agent_name = "hermes"
             
-            # PRIORITY 3: Router LLM decides
+            # 2: Router LLM decides
             else:
                 agent_name = self._simple_route(text, current_agent=self.last_agent)
                 # Check mute status
@@ -268,6 +248,9 @@ class Router:
                 )
                 
                 if agent_name == "bart":
+                    print("\n=== BART'S PROMPT ===")
+                    print(enhanced_prompt)
+                    print("=== END PROMPT ===\n")
                     agent = Bart(prompt=enhanced_prompt)
                 elif agent_name == "bernie":
                     agent = Bernie(prompt=enhanced_prompt)
@@ -431,14 +414,10 @@ class Router:
         return reply
     
     def _simple_route(self, user_message: str, current_agent: str = "bart") -> str:
-        """Fast routing with agent stickiness"""
+        """Fast routing with integrated crisis detection and handoff recognition"""
         from anthropic import Anthropic
         import os
         
-        if self._detect_crisis(user_message):
-            return "hermes"
-        
-        # Use existing config loader
         router_config = self.config.get_router_descriptions()  
         
         agent_guide = "\n".join([
@@ -451,22 +430,39 @@ class Router:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=10,
-            system=f"Bar router. Current: {current_agent}. Only switch if clearly needed. Reply with ONLY: bart, bernie, jb, hermes, or blanca",
+            system=f"""Bar router with crisis detection and handoff recognition.
+
+        Current agent: {current_agent}
+        Only switch if clearly needed.
+
+        CRISIS PRIORITY: If message indicates genuine self-harm intent, violence plans, 
+        or immediate danger (NOT philosophical discussion), respond: CRISIS_HERMES
+
+        HANDOFF DETECTION: If {current_agent} says "Let me get [agent]" or "Talk to [agent]" 
+        or "[Agent]'s territory" or "Have a word with [agent]" or similar handoff language, 
+        route to that agent immediately.
+
+        Otherwise respond with agent name: bart, bernie, jb, hermes, or blanca""",
             messages=[{
                 "role": "user",
                 "content": f"""User: "{user_message}"
 
-    {agent_guide}
+        {agent_guide}
 
-    Current: {current_agent}
-    If user mentions agent by name, switch to that agent.
-    Stay with {current_agent} unless user clearly needs someone else."""
-            }]
+        Current: {current_agent}
+        If user mentions agent by name, switch to that agent.
+        Stay with {current_agent} unless user clearly needs someone else."""
+                }]
         )
         
-        agent = response.content[0].text.strip().lower().split()[0].split('\n')[0]
-        agent = agent.split()[0]  # Take first word only
-
+        result = response.content[0].text.strip().lower()
+        
+        # Handle crisis routing
+        if "crisis" in result:
+            return "hermes"
+        
+        # Normal routing
+        agent = result.split()[0].split('\n')[0]
         if agent in ["bart", "bernie", "jb", "hermes", "blanca"]:
             return agent
         return current_agent

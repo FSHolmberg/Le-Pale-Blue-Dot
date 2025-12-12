@@ -212,16 +212,17 @@ def get_environment_for_agent() -> str:
     Shorter version for agent system prompts.
     Just the essentials without being too verbose.
     """
+    now = datetime.now(CALAIS_TZ)
     weather = get_current_weather()
     time_period = get_time_of_day()
     
     if not weather:
-        return f"It's {time_period} outside."
+        return f"It's {time_period}, {now.strftime('%H:%M')}."
     
     temp = weather["temp"]
     conditions = weather["description"]
     
-    return f"It's {time_period}, {temp}°C, {conditions} outside the window."
+    return f"It's {time_period}, {now.strftime('%H:%M')}, {temp}°C, {conditions} outside the window."
 
 
 # For testing/debugging
